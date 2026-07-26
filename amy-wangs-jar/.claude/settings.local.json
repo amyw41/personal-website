@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(curl -s \"http://localhost:3001/\")",
+      "Bash(curl -s \"http://localhost:3001/etc\")",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"CommandLine LIKE '%next dev%'\\\\\" | Select-Object ProcessId,CommandLine\")",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"CommandLine LIKE '%next dev%'\\\\\" | Select-Object ProcessId,ParentProcessId,CommandLine\")",
+      "Bash(powershell -Command \"taskkill /PID 29312 /T /F; taskkill /PID 37004 /T /F\" 2>&1)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"homepage: %{http_code}\\\\n\" \"http://localhost:3001/\")",
+      "Bash(curl -s -o /dev/null -w \"homepage: %{http_code}\\\\n\" \"http://localhost:3000/\")",
+      "Read(//tmp/**)",
+      "Bash(rm -rf .next)",
+      "Bash(curl -s \"http://localhost:3001/\" -o /tmp/home.html -w \"homepage: %{http_code}\\\\n\")"
+    ]
+  }
+}
