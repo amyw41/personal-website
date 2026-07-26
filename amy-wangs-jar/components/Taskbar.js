@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
@@ -17,20 +17,15 @@ const NAV_LINKS = [
 const FRAME_WIDTH = 1512;
 const pct = (x) => `${((x / FRAME_WIDTH) * 100).toFixed(3)}%`;
 
-function getBreadcrumb(pathname) {
-  if (pathname === "/") return "home";
-  const segments = pathname.split("/").filter(Boolean);
-  return ["home", ...segments].join(" / ");
-}
+
 
 export default function Taskbar() {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
-      <div className="relative hidden h-11 w-full md:block">
-        <Link href="/" className="absolute flex items-center" style={{ left: pct(14), top: 7 }}>
+      <div className="hidden w-full grid-cols-3 items-center px-8 py-3 md:grid">
+        <Link href="/" className="flex w-fit items-center justify-self-start self-start">
           <Image
             src="/images/logo.png"
             alt="Amy Wang's Jar logo"
@@ -41,32 +36,21 @@ export default function Taskbar() {
           />
         </Link>
 
-        <nav
-          className="absolute flex items-center gap-8 whitespace-nowrap font-instrument text-sm font-medium text-gray-800"
-          style={{ left: pct(584), top: 12 }}
-        >
+        <nav className="flex items-center justify-center gap-16 whitespace-nowrap font-instrument text-[30px] font-medium text-gray-800">
           {NAV_LINKS.map((link) =>
             link.external ? (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-colors hover:text-gray-500"
-              >
+              <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" className="text-gray-800 transition-colors hover:text-[#2460A4]">
                 {link.label}
               </a>
             ) : (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="transition-colors hover:text-gray-500"
-              >
+              <Link key={link.label} href={link.href} className="text-gray-800 transition-colors hover:text-[#2460A4]">
                 {link.label}
               </Link>
             )
           )}
         </nav>
+
+        <div />
       </div>
 
       <div className="flex items-center justify-between px-4 py-3 md:hidden">
@@ -91,8 +75,9 @@ export default function Taskbar() {
         </button>
       </div>
 
+      {/* Mobile */}
       {open && (
-        <div className="flex flex-col gap-4 border-t border-gray-200 bg-white px-4 py-4 font-instrument text-sm font-medium text-gray-800 md:hidden">
+        <div className="flex flex-col gap-4 border-t border-gray-200 bg-white px-4 py-4 font-instrument text-[28px] font-medium text-gray-800 md:hidden">
           {NAV_LINKS.map((link) =>
             link.external ? (
               <a
@@ -100,12 +85,13 @@ export default function Taskbar() {
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="text-gray-800"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
               </a>
             ) : (
-              <Link key={link.label} href={link.href} onClick={() => setOpen(false)}>
+              <Link key={link.label} href={link.href} className="text-gray-800" onClick={() => setOpen(false)}>
                 {link.label}
               </Link>
             )
@@ -113,9 +99,7 @@ export default function Taskbar() {
         </div>
       )}
 
-      <div className="border-t border-gray-100 px-4 py-1.5 sm:px-8">
-        <p className="font-roboto text-xs text-gray-400">{getBreadcrumb(pathname)}</p>
-      </div>
+
     </header>
   );
 }

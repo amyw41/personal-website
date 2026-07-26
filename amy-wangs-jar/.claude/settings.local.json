@@ -13,7 +13,11 @@
       "Bash(curl -s -o /dev/null -w \"homepage: %{http_code}\\\\n\" \"http://localhost:3000/\")",
       "Read(//tmp/**)",
       "Bash(rm -rf .next)",
-      "Bash(curl -s \"http://localhost:3001/\" -o /tmp/home.html -w \"homepage: %{http_code}\\\\n\")"
+      "Bash(curl -s \"http://localhost:3001/\" -o /tmp/home.html -w \"homepage: %{http_code}\\\\n\")",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"CommandLine LIKE '%next dev%' OR CommandLine LIKE '%next-server%'\\\\\" | Select-Object ProcessId,ParentProcessId,CommandLine,CreationDate\")",
+      "Bash(powershell -Command \"Get-NetTCPConnection -State Listen -LocalPort 3000,3001,3002,3003 -ErrorAction SilentlyContinue | Select-Object LocalPort,OwningProcess\")",
+      "Bash(powershell -Command \"taskkill /PID 5872 /T /F; taskkill /PID 24316 /T /F; taskkill /PID 30536 /T /F; taskkill /PID 31364 /T /F\" 2>&1)",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"CommandLine LIKE '%next dev%'\\\\\" | Select-Object ProcessId,CommandLine\" 2>&1)"
     ]
   }
 }

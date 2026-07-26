@@ -34,31 +34,13 @@ export default function Footer() {
 
   return (
     <footer className="mt-auto w-full">
-      <div className="relative h-11 w-full bg-black">
-        <p
-          className="absolute whitespace-nowrap font-roboto text-xs text-white"
-          style={{ left: pct(29), top: 11 }}
-        >
-          Designed + coded by Amy — {year}
-        </p>
-        <a
-          href="https://amywang.framer.website"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute whitespace-nowrap font-roboto text-xs text-white hover:underline"
-          style={{ left: pct(1223), top: 11 }}
-        >
-          Looking for my portfolio?
-        </a>
-      </div>
-
-      <div className="relative h-[350px] w-full overflow-hidden bg-[#0A5CFF]">
+      <div className="relative h-[350px] w-full overflow-hidden bg-[#2460A4]">
         <div
-          className="absolute flex items-center gap-2 whitespace-nowrap font-instrument text-sm text-white"
+          className="absolute flex items-center gap-3 whitespace-nowrap font-roboto text-base text-white"
           style={{ left: pct(29), top: 34 }}
         >
           {SOCIAL_TEXT_LINKS.map((social, i) => (
-            <span key={social.label} className="flex items-center gap-2">
+            <span key={social.label} className="flex items-center gap-3">
               <a href={social.href} target="_blank" rel="noopener noreferrer" className="hover:underline">
                 {social.label}
               </a>
@@ -71,6 +53,24 @@ export default function Footer() {
           <MarqueeGroup />
           <MarqueeGroup ariaHidden="true" />
         </div>
+      </div>
+
+      <div className="relative h-11 w-full bg-black">
+        <p
+          className="absolute whitespace-nowrap font-roboto text-sm text-white"
+          style={{ left: pct(29), top: 11 }}
+        >
+          Designed + coded by Amy (© 2026)
+        </p>
+        <a
+          href="https://amywang.framer.website"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute whitespace-nowrap font-roboto text-sm text-white hover:underline"
+          style={{ left: pct(1223), top: 11 }}
+        >
+          Looking for my portfolio?
+        </a>
       </div>
     </footer>
   );

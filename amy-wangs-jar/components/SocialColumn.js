@@ -27,19 +27,19 @@ function SocialIcon({ social }) {
       <Image
         src={social.src}
         alt={social.label}
-        width={20}
-        height={20}
-        className="h-5 w-5 object-contain"
+        width={30}
+        height={30}
+        className="h-[30px] w-[30px] object-contain"
       />
     );
   }
-  return <TikTokIcon className="h-5 w-5" />;
+  return <TikTokIcon className="h-[30px] w-[30px]" />;
 }
 
 export default function SocialColumn() {
   return (
     <div
-      className="fixed z-40 hidden flex-col items-center gap-6 md:flex"
+      className="fixed z-40 hidden flex-col items-center gap-9 rounded-[5px] border border-[#B8B8B8] bg-[#F2F2F2] px-[18px] py-6 md:flex"
       style={{ left: pct(1433), top: 95 }}
     >
       {SOCIAL_LINKS.map((social) => (
