@@ -39,9 +39,12 @@ const WALLS = {
   floorY: 0.96,
 };
 
-const MAX_SPEED = 16; // px/tick — keeps items from tunneling through walls or flinging out
-const RUSTLE_RADIUS = 130; // px
-const RUSTLE_STRENGTH = 0.02;
+const MAX_SPEED = 18; // px/tick — keeps items from tunneling through walls or flinging out
+const RUSTLE_RADIUS = 110; // px
+const RUSTLE_STRENGTH = 0.006;
+const RUSTLE_FOLLOW = 0.00012; // how much the pointer's own velocity gets imparted
+const MAX_POINTER_SPEED = 25; // px/tick — caps sudden fast-mouse-move spikes so a quick swipe doesn't fling items out
+const BODY_SCALE = 0.36; // fraction of item.size used as the collision hitbox — much smaller than the rendered image so the pile packs down tightly enough to fit under the jar's rim
 
 export default function Jar() {
   const containerRef = useRef(null);
@@ -56,7 +59,7 @@ export default function Jar() {
     if (!container) return;
 
     const engine = Matter.Engine.create();
-    engine.gravity.y = 1;
+    engine.gravity.y = 2.6;
     engine.positionIterations = 10;
     engine.velocityIterations = 8;
     engineRef.current = engine;
@@ -89,7 +92,7 @@ export default function Jar() {
       const x = (item.left / 100) * width;
       const y = -(spawnCursor + item.size / 2);
       spawnCursor += item.size + 30;
-      const body = Matter.Bodies.rectangle(x, y, item.size * 0.7, item.size * 0.7, {
+      const body = Matter.Bodies.rectangle(x, y, item.size * BODY_SCALE, item.size * BODY_SCALE, {
         density: item.density,
         friction: item.friction,
         restitution: item.restitution,
@@ -127,7 +130,7 @@ export default function Jar() {
       const rightBound = currentWalls[1].bounds.min.x;
       const floorBound = currentWalls[2].bounds.min.y;
       bodies.forEach((body, i) => {
-        const half = ITEMS[i].size * 0.35;
+        const half = ITEMS[i].size * (BODY_SCALE / 2);
         let { x, y } = body.position;
         let vx = body.velocity.x;
         let vy = body.velocity.y;
@@ -143,8 +146,14 @@ export default function Jar() {
 
       if (pointerRef.current.active) {
         const { x: px, y: py, prevX, prevY } = pointerRef.current;
-        const vx = px - prevX;
-        const vy = py - prevY;
+        let vx = px - prevX;
+        let vy = py - prevY;
+        const pointerSpeed = Math.sqrt(vx * vx + vy * vy);
+        if (pointerSpeed > MAX_POINTER_SPEED) {
+          const scale = MAX_POINTER_SPEED / pointerSpeed;
+          vx *= scale;
+          vy *= scale;
+        }
         for (const body of bodies) {
           const dx = body.position.x - px;
           const dy = body.position.y - py;
@@ -153,8 +162,8 @@ export default function Jar() {
             const falloff = 1 - dist / RUSTLE_RADIUS;
             const mass = body.mass;
             Matter.Body.applyForce(body, body.position, {
-              x: ((dx / dist) * falloff * RUSTLE_STRENGTH + vx * 0.0006) * mass,
-              y: ((dy / dist) * falloff * RUSTLE_STRENGTH + vy * 0.0006) * mass,
+              x: ((dx / dist) * falloff * RUSTLE_STRENGTH + vx * RUSTLE_FOLLOW) * mass,
+              y: ((dy / dist) * falloff * RUSTLE_STRENGTH + vy * RUSTLE_FOLLOW) * mass,
             });
           }
         }
@@ -258,10 +267,10 @@ export default function Jar() {
         ))}
       </div>
 
-      <h1 className="mt-10 font-singsong text-[clamp(1.75rem,6vw,3.5rem)] leading-none text-[#2460A4]">
+      <h1 className="mt-10 font-singsong text-[clamp(2.5rem,8vw,5rem)] leading-none text-[#2460A4]">
         AMY WANG&apos;S JAR
       </h1>
-      <p className="mt-2 font-roboto text-base font-normal text-gray-500">
+      <p className="mt-2 font-roboto text-xl font-normal text-gray-500">
         Filled with tasteful design.
       </p>
     </section>
