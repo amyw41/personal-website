@@ -21,7 +21,22 @@
       "Bash(node -e ' *)",
       "Bash(mkdir -p \"/c/Users/amyso/AppData/Local/Temp/claude/C--Users-amyso-Desktop-website-amy-wangs-jar/b19d7547-4ac5-473c-b9cf-26ba0e668300/scratchpad\")",
       "Bash(powershell -Command \"taskkill /PID 17960 /T /F\" 2>&1)",
-      "Bash(powershell -Command \"taskkill /PID 18372 /T /F\" 2>&1)"
+      "Bash(powershell -Command \"taskkill /PID 18372 /T /F\" 2>&1)",
+      "Bash(node -e \"console.log\\(Object.keys\\(require\\('next/dist/compiled/@next/font/dist/google'\\)\\).filter\\(k=>/Instrument/i.test\\(k\\)\\)\\)\")",
+      "Bash(xargs grep -l \"Instrument Sans\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node *)",
+      "Bash(grep -o \"min-h-\\\\\\\\\\\\\\\\\\\\[[^]]*\\\\]\" /c/Users/amyso/Desktop/website/amy-wangs-jar/.next/dev/static/chunks/app_globals_css_1igg3k2._.single.css)",
+      "Bash(python3 *)",
+      "Bash(npx eslint *)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(npx tsc *)",
+      "Bash(npm uninstall *)",
+      "Bash(echo \"TSC EXIT: $?\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(echo \"ESLINT EXIT: $?\")",
+      "Bash(echo \"ESLINT: $?\")",
+      "Bash(echo \"TSC: $?\")"
     ]
   }
 }

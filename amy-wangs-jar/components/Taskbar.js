@@ -12,13 +12,6 @@ const NAV_LINKS = [
   { label: "Notes", href: "/notes" },
 ];
 
-// Horizontal positions are percentages of a 1512px reference frame — see Footer.js
-// for why (scales proportionally instead of pinning to literal px).
-const FRAME_WIDTH = 1512;
-const pct = (x) => `${((x / FRAME_WIDTH) * 100).toFixed(3)}%`;
-
-
-
 export default function Taskbar() {
   const [open, setOpen] = useState(false);
 
@@ -98,8 +91,6 @@ export default function Taskbar() {
           )}
         </div>
       )}
-
-
     </header>
   );
 }

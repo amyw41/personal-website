@@ -1,10 +1,7 @@
-// Horizontal positions are percentages of a 1512px reference frame (the design's
-// desktop canvas) so the layout scales proportionally at any viewport width instead
-// of being pinned to literal px. Vertical offsets stay literal since they're small
-// positions inside fixed-height bars, not values meant to stretch with width.
-const FRAME_WIDTH = 1512;
-const pct = (x) => `${((x / FRAME_WIDTH) * 100).toFixed(3)}%`;
+import { pct } from "@/lib/frame";
 
+// Vertical offsets below stay literal since they're small positions inside
+// fixed-height bars, not values meant to stretch with width.
 const REPEAT_COUNT = 8;
 
 // TODO: swap these "#" placeholders for Amy's real social profile URLs.
@@ -30,8 +27,6 @@ function MarqueeGroup({ ariaHidden }) {
 }
 
 export default function Footer() {
-  const year = new Date().getFullYear();
-
   return (
     <footer className="mt-auto w-full">
       <div className="relative h-[350px] w-full overflow-hidden bg-[#2460A4]">

@@ -1,4 +1,4 @@
-import { Instrument_Serif, Roboto } from "next/font/google";
+import { Instrument_Serif, Instrument_Sans, Roboto } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import Taskbar from "@/components/Taskbar";
@@ -18,6 +18,13 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
+const instrumentSans = Instrument_Sans({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-instrument-sans",
+  display: "swap",
+});
+
 const roboto = Roboto({
   weight: ["400", "500", "700"],
   subsets: ["latin"],
@@ -34,7 +41,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${singsong.variable} ${instrumentSerif.variable} ${roboto.variable} h-full antialiased`}
+      className={`${singsong.variable} ${instrumentSerif.variable} ${instrumentSans.variable} ${roboto.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-roboto">
         <Taskbar />

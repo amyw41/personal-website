@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef } from "react";
 import Matter from "matter-js";
+import { motion } from "framer-motion";
 
 // Each item's `top`/`left` are only the INITIAL spawn position (% of the jar
 // container) — once the physics sim takes over, real gravity/collision decide
@@ -30,8 +31,11 @@ const ITEMS = [
   { src: "/images/items/bottle.png", alt: "Pink water bottle", top: 74, left: 80, size: 185, rotate: 90, density: 0.002, friction: 0.35, restitution: 0.15, frictionAir: 0.008, fallOrder: 4, lockRotation: true },
   { src: "/images/items/chips.png", alt: "Turtle Chips snack bag", top: 82, left: 32, size: 165, rotate: -3, density: 0.0004, friction: 0.5, restitution: 0.2, frictionAir: 0.025, fallOrder: 3 },
   { src: "/images/items/pineapple.png", alt: "Pineapple drink can", top: 85, left: 20, size: 150, rotate: -4, density: 0.0016, friction: 0.25, restitution: 0.3, frictionAir: 0.008, fallOrder: 2 },
-  { src: "/images/items/kitty-plush.png", alt: "Hello Kitty plush toy", top: 77, left: 65, size: 220, rotate: -12, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 5, lockRotation: true },
+  { src: "/images/items/kitty-plush.png", alt: "Hello Kitty plush toy", top: 77, left: 58, size: 220, rotate: -12, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 5, lockRotation: true },
   { src: "/images/items/laneige.png", alt: "Laneige lip balm tube", top: 92, left: 44, size: 175, rotate: 70, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 1, lockRotation: true, bodyScale: 0.22 },
+  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 55, size: 180, rotate: -15, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
+  { src: "/images/items/digi.png", alt: "Digital camera with beaded strap", top: 88, left: 60, size: 190, rotate: 20, density: 0.0012, friction: 0.4, restitution: 0.2, frictionAir: 0.012, fallOrder: 10, lockRotation: true },
+  { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 68, size: 170, rotate: 75, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 11, lockRotation: true, bodyScale: 0.22 },
 ];
 
 // Fraction of the jar container's own box (0-1). Approximates the lower body
@@ -55,7 +59,6 @@ const BODY_SCALE = 0.36; // fraction of item.size used as the collision hitbox �
 export default function Jar() {
   const containerRef = useRef(null);
   const itemElRefs = useRef([]);
-  const engineRef = useRef(null);
   const bodiesRef = useRef([]);
   const wallsRef = useRef([]);
   const pointerRef = useRef({ x: 0, y: 0, prevX: 0, prevY: 0, active: false });
@@ -68,7 +71,6 @@ export default function Jar() {
     engine.gravity.y = 2.6;
     engine.positionIterations = 10;
     engine.velocityIterations = 8;
-    engineRef.current = engine;
 
     const rect = container.getBoundingClientRect();
     const width = rect.width;
@@ -278,25 +280,7 @@ export default function Jar() {
     const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(container);
 
-    // Temporary diagnostics: log where every item actually is a few seconds
-    // in, so "it's not visible" can be told apart from "it's stuck somewhere
-    // off-screen" vs "it landed fine but isn't rendering." Check the browser
-    // console (F12) after the page loads.
-    const debugTimer = setTimeout(() => {
-      console.log(
-        "[Jar debug] item status:",
-        ITEMS.map((item, i) => ({
-          item: item.alt,
-          landed: landed[i],
-          x: bodies[i].position.x.toFixed(0),
-          y: bodies[i].position.y.toFixed(0),
-          hasElement: !!itemElRefs.current[i],
-        }))
-      );
-    }, 6000);
-
     return () => {
-      clearTimeout(debugTimer);
       cancelAnimationFrame(rafId);
       container.removeEventListener("mousemove", onMouseMove);
       container.removeEventListener("mouseleave", onMouseLeave);
@@ -340,19 +324,33 @@ export default function Jar() {
               width={1200}
               height={1280}
               draggable={false}
-              onError={() => console.error("[Jar debug] image failed to load:", item.alt, item.src)}
               className="h-full w-full select-none object-contain"
             />
           </div>
         ))}
       </div>
 
-      <h1 className="mt-10 font-singsong text-[clamp(2.5rem,8vw,5rem)] leading-none text-[#2460A4]">
+      {/* Delayed so the jar drawing reads as the first beat (it's already on
+          screen the instant this component mounts) before the text slides up
+          — by this point the items are well into their physics-driven fall,
+          so the two motions read as concurrent rather than the whole hero
+          animating in as one simultaneous blob. */}
+      <motion.h1
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut", delay: 0.5 }}
+        className="mt-10 font-singsong text-[clamp(2.5rem,8vw,5rem)] leading-none text-[#2460A4]"
+      >
         AMY WANG&apos;S JAR
-      </h1>
-      <p className="mt-2 font-roboto text-xl font-normal text-gray-500">
+      </motion.h1>
+      <motion.p
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut", delay: 0.6 }}
+        className="mt-2 font-roboto text-xl font-light text-gray-500"
+      >
         Filled with tasteful design.
-      </p>
+      </motion.p>
     </section>
   );
 }
