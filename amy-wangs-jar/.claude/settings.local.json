@@ -17,7 +17,11 @@
       "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"CommandLine LIKE '%next dev%' OR CommandLine LIKE '%next-server%'\\\\\" | Select-Object ProcessId,ParentProcessId,CommandLine,CreationDate\")",
       "Bash(powershell -Command \"Get-NetTCPConnection -State Listen -LocalPort 3000,3001,3002,3003 -ErrorAction SilentlyContinue | Select-Object LocalPort,OwningProcess\")",
       "Bash(powershell -Command \"taskkill /PID 5872 /T /F; taskkill /PID 24316 /T /F; taskkill /PID 30536 /T /F; taskkill /PID 31364 /T /F\" 2>&1)",
-      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"CommandLine LIKE '%next dev%'\\\\\" | Select-Object ProcessId,CommandLine\" 2>&1)"
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"CommandLine LIKE '%next dev%'\\\\\" | Select-Object ProcessId,CommandLine\" 2>&1)",
+      "Bash(node -e ' *)",
+      "Bash(mkdir -p \"/c/Users/amyso/AppData/Local/Temp/claude/C--Users-amyso-Desktop-website-amy-wangs-jar/b19d7547-4ac5-473c-b9cf-26ba0e668300/scratchpad\")",
+      "Bash(powershell -Command \"taskkill /PID 17960 /T /F\" 2>&1)",
+      "Bash(powershell -Command \"taskkill /PID 18372 /T /F\" 2>&1)"
     ]
   }
 }

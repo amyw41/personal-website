@@ -1,3 +1,5 @@
+import Jar from "@/components/Jar";
+
 export default function HomePage() {
-  return <div />;
+  return <Jar />;
 }

@@ -20,7 +20,7 @@ function MarqueeGroup({ ariaHidden }) {
       {Array.from({ length: REPEAT_COUNT }).map((_, i) => (
         <span
           key={i}
-          className="whitespace-nowrap px-10 font-singsong text-[80px] font-bold leading-none text-white sm:text-[120px] lg:text-[160px]"
+          className="whitespace-nowrap px-10 font-singsong text-[100px] font-bold leading-none text-white sm:text-[140px] lg:text-[180px]"
         >
           THANKS FOR VISITING
         </span>
@@ -35,23 +35,33 @@ export default function Footer() {
   return (
     <footer className="mt-auto w-full">
       <div className="relative h-[350px] w-full overflow-hidden bg-[#2460A4]">
-        <div
-          className="absolute flex items-center gap-3 whitespace-nowrap font-roboto text-base text-white"
-          style={{ left: pct(29), top: 34 }}
-        >
-          {SOCIAL_TEXT_LINKS.map((social, i) => (
-            <span key={social.label} className="flex items-center gap-3">
-              <a href={social.href} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                {social.label}
-              </a>
-              {i < SOCIAL_TEXT_LINKS.length - 1 && <span aria-hidden="true">•</span>}
-            </span>
-          ))}
+        <div className="absolute inset-x-0 top-0 h-[70px]">
+          <div
+            className="absolute flex items-center gap-3 whitespace-nowrap font-roboto text-base text-white"
+            style={{ left: pct(29), top: 34 }}
+          >
+            {SOCIAL_TEXT_LINKS.map((social, i) => (
+              <span key={social.label} className="flex items-center gap-3">
+                <a
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-black"
+                >
+                  {social.label}
+                </a>
+                {i < SOCIAL_TEXT_LINKS.length - 1 && <span aria-hidden="true">•</span>}
+              </span>
+            ))}
+          </div>
         </div>
 
-        <div className="absolute flex w-max animate-marquee" style={{ top: 55 }}>
-          <MarqueeGroup />
-          <MarqueeGroup ariaHidden="true" />
+        {/* Centered in the space between the social row above and the black bar below, so it stays equidistant from both regardless of the marquee's rendered font size at each breakpoint. */}
+        <div className="absolute inset-x-0 bottom-0 top-[70px] flex items-center overflow-hidden">
+          <div className="flex w-max animate-marquee">
+            <MarqueeGroup />
+            <MarqueeGroup ariaHidden="true" />
+          </div>
         </div>
       </div>
 
@@ -62,15 +72,20 @@ export default function Footer() {
         >
           Designed + coded by Amy (© 2026)
         </p>
-        <a
-          href="https://amywang.framer.website"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute whitespace-nowrap font-roboto text-sm text-white hover:underline"
-          style={{ left: pct(1223), top: 11 }}
+        <p
+          className="absolute whitespace-nowrap font-roboto text-sm text-white"
+          style={{ right: pct(29), top: 11 }}
         >
-          Looking for my portfolio?
-        </a>
+          Looking for my{" "}
+          <a
+            href="https://amywang.framer.website"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-[#2460A4]"
+          >
+            portfolio?
+          </a>
+        </p>
       </div>
     </footer>
   );

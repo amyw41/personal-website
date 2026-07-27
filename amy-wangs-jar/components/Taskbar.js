@@ -29,10 +29,10 @@ export default function Taskbar() {
           <Image
             src="/images/logo.png"
             alt="Amy Wang's Jar logo"
-            width={32}
-            height={32}
+            width={44}
+            height={44}
             priority
-            className="h-8 w-8 object-contain"
+            className="h-11 w-11 object-contain"
           />
         </Link>
 
@@ -58,10 +58,10 @@ export default function Taskbar() {
           <Image
             src="/images/logo.png"
             alt="Amy Wang's Jar logo"
-            width={32}
-            height={32}
+            width={44}
+            height={44}
             priority
-            className="h-8 w-8 object-contain"
+            className="h-11 w-11 object-contain"
           />
         </Link>
         <button
