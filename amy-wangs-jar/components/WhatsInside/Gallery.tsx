@@ -6,6 +6,11 @@ import { motion } from "framer-motion";
 import { Star } from "lucide-react";
 import { WHATS_INSIDE_ITEMS, type WhatsInsideItem } from "@/lib/items";
 
+// Card padding + image size step up together across breakpoints (p-4/192px
+// at base up to p-9/288px at xl) — the original fixed p-9 + 256-288px image
+// only ever fit comfortably on wide desktop viewports; at grid-cols-1 on a
+// 320-375px phone it alone exceeded the available width. Each tier below is
+// sized to fit its narrowest viewport with real margin, not just eyeballed.
 function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }) {
   const [hovered, setHovered] = useState(false);
 
@@ -20,7 +25,7 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.5, ease: "easeOut", delay: column * 0.08 }}
-      className="relative flex flex-col items-center rounded-2xl p-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2460A4]"
+      className="relative flex flex-col items-center rounded-2xl p-4 xl:p-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2460A4]"
     >
       <motion.div
         animate={{ opacity: hovered ? 1 : 0, scale: hovered ? 1 : 0.6 }}
@@ -33,13 +38,13 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
       <motion.div
         animate={{ opacity: hovered ? 1 : 0.5, scale: hovered ? 1.15 : 1.12 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
-        className="relative h-64 w-64 sm:h-72 sm:w-72"
+        className="relative h-48 w-48 sm:h-56 sm:w-56 lg:h-64 lg:w-64 xl:h-72 xl:w-72"
       >
         <Image
           src={item.image}
           alt={item.name}
           fill
-          sizes="(min-width: 640px) 288px, 256px"
+          sizes="(min-width: 1280px) 288px, (min-width: 1024px) 256px, (min-width: 640px) 224px, 192px"
           draggable={false}
           className="select-none object-contain"
         />

@@ -6,26 +6,32 @@ export const NEIGHBOR_SCALE = 0.72;
 // Must match the arrow buttons' own h-[2.25rem] w-[2.25rem] Tailwind class.
 export const ARROW_SIZE = 36;
 
-// Item box size and the gap we want between every element (arrow-neighbor,
-// neighbor-center, center-neighbor, neighbor-arrow) at each breakpoint —
-// matches the sm: breakpoint used by the item box's own Tailwind classes.
-export const LAYOUT = {
-  base: { itemSize: 360, gap: 29 },
-  sm: { itemSize: 440, gap: 43 },
-};
+const MIN_ITEM_SIZE = 120; // px — floor so items stay legible on the smallest phones
+const MAX_ITEM_SIZE = 440; // px — the original desktop design size, used as a ceiling
+const GAP_RATIO = 29 / 360; // preserves the original design's gap:itemSize ratio at any size
+const IMAGE_RATIO = 256 / 360; // preserves the original image:itemSize ratio at any size
+const PAGE_PADDING = 32; // matches the page's own px-4 (16px) on each side
 
-// Deriving spacing/container width FROM the desired gap (rather than the
-// other way around) is what guarantees every gutter — arrow to neighbor,
-// neighbor to center, and so on — ends up visually equal. `totalWidth` is
-// the full arrow-to-arrow span; it's the shared width source of truth that
-// the Gallery view is sized to match, so both views read as the same width.
-export function computeLayout(isSm: boolean) {
-  const { itemSize, gap } = isSm ? LAYOUT.sm : LAYOUT.base;
+// Solves for the item size that makes the whole arrow-to-arrow row exactly
+// fit the available width (viewport minus page padding) — the carousel used
+// to snap between two fixed-px sizes (a "base" tier that was itself ~936px
+// wide, guaranteed to overflow every phone and most tablets). Deriving every
+// dimension from a formula instead means it can never overflow by
+// construction, at any viewport width, not just the two sizes someone
+// happened to test.
+export function computeLayout(viewportWidth: number) {
+  const available = Math.max(viewportWidth - PAGE_PADDING, 240);
+  const denom = 1 + 2 * NEIGHBOR_SCALE + 4 * GAP_RATIO;
+  const solvedItemSize = (available - 2 * ARROW_SIZE) / denom;
+  const itemSize = Math.min(MAX_ITEM_SIZE, Math.max(MIN_ITEM_SIZE, solvedItemSize));
+
+  const gap = itemSize * GAP_RATIO;
+  const imageSize = itemSize * IMAGE_RATIO;
   const neighborSize = itemSize * NEIGHBOR_SCALE;
   const spacing = itemSize / 2 + gap + neighborSize / 2;
   const containerWidth = 2 * (spacing + neighborSize / 2);
   const totalWidth = 2 * ARROW_SIZE + 2 * gap + containerWidth;
-  return { spacing, containerWidth, gap, totalWidth };
+  return { itemSize, imageSize, spacing, containerWidth, gap, totalWidth };
 }
 
 // useLayoutEffect is a no-op on the server (React warns if called during
@@ -33,27 +39,24 @@ export function computeLayout(isSm: boolean) {
 // the browser.
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-// Starts `false` identically on every render path — server, hydration, and
-// any later client-only mount — so there's never a server/client value to
+// Starts at 0 identically on every render path — server, hydration, and any
+// later client-only mount — so there's never a server/client value to
 // hydration-mismatch against. The layout effect then corrects it
-// *synchronously before the browser paints*, so despite starting from
-// `false` there's no visible flash of the wrong size on any mount path:
-// neither the initial page load (when this can be server-rendered) nor a
-// later remount from toggling views back and forth.
+// *synchronously before the browser paints*, so despite starting from 0
+// there's no visible flash of the wrong size on any mount path.
 //
-// A plain useEffect would still be hydration-safe but runs *after* paint,
-// so the corrected value would visibly snap in a frame late — which is
-// exactly the bug this hook exists to avoid.
-export function useIsSm() {
-  const [isSm, setIsSm] = useState(false);
+// A plain useEffect would still be hydration-safe but runs *after* paint, so
+// the corrected value would visibly snap in a frame late — which is exactly
+// the bug this hook exists to avoid.
+export function useViewportWidth() {
+  const [width, setWidth] = useState(0);
 
   useIsomorphicLayoutEffect(() => {
-    const mq = window.matchMedia("(min-width: 640px)");
-    const update = () => setIsSm(mq.matches);
+    const update = () => setWidth(window.innerWidth);
     update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
-  return isSm;
+  return width;
 }

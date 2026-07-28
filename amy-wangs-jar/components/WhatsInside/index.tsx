@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Gallery from "./Gallery";
 import Carousel from "./Carousel";
-import { computeLayout, useIsSm } from "./layout";
+import { computeLayout, useViewportWidth } from "./layout";
 
 type View = "carousel" | "gallery";
 
@@ -18,8 +18,8 @@ export default function WhatsInside() {
   // Carousel's own arrow-to-arrow span is the shared width source of truth —
   // Gallery is sized to match it (rather than the other way around) so
   // switching views never changes the section's overall width.
-  const isSm = useIsSm();
-  const { totalWidth } = computeLayout(isSm);
+  const viewportWidth = useViewportWidth();
+  const { totalWidth } = computeLayout(viewportWidth);
 
   return (
     // pt-36/pb-36 are equal on purpose: this section is self-contained, like

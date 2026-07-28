@@ -63,6 +63,14 @@ const RUSTLE_FOLLOW = 0.00018; // how much the pointer's own velocity gets impar
 const MAX_POINTER_SPEED = 25; // px/tick — caps sudden fast-mouse-move spikes so a quick swipe doesn't fling items out
 const BODY_SCALE = 0.36; // fraction of item.size used as the collision hitbox — much smaller than the rendered image so the pile packs down tightly enough to fit under the jar's rim
 
+// item.size values (180px) are tuned against the container's own max-w-[380px]
+// design reference. Below that width the container itself shrinks (w-full),
+// but a raw item.size wouldn't — items would keep rendering at full size and
+// visually spill past the (now smaller) jar outline. Scaling every item.size
+// use by measured-width/REFERENCE_WIDTH keeps items proportional to the jar
+// at any container size, so the whole scene stays fully visible.
+const REFERENCE_WIDTH = 380;
+
 export default function Jar() {
   const containerRef = useRef(null);
   const itemElRefs = useRef([]);
@@ -82,6 +90,9 @@ export default function Jar() {
     const rect = container.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
+    // Capped at 1 since the container never exceeds REFERENCE_WIDTH (its own
+    // max-w-[380px]) — this only ever scales items down, never up.
+    const scale = Math.min(width / REFERENCE_WIDTH, 1);
 
     const wallThickness = 40;
     const makeWalls = (w, h) => [
@@ -106,27 +117,29 @@ export default function Jar() {
     // Spawn height is assigned by `fallOrder`, not array position, so drop
     // sequence and back-to-front stacking can be set independently.
     const spawnY = new Array(ITEMS.length);
-    let spawnCursor = 40;
+    let spawnCursor = 40 * scale;
     [...ITEMS.keys()].sort((a, b) => ITEMS[a].fallOrder - ITEMS[b].fallOrder).forEach((i) => {
-      spawnY[i] = -(spawnCursor + ITEMS[i].size / 2);
-      spawnCursor += ITEMS[i].size + 30;
+      const size = ITEMS[i].size * scale;
+      spawnY[i] = -(spawnCursor + size / 2);
+      spawnCursor += size + 30 * scale;
     });
     const targetX = ITEMS.map((item) => (item.left / 100) * width);
     // Both "half" values are constant for the component's lifetime — precomputed
     // once here instead of recomputed every tick (collisionHalf is the physics
-    // hitbox half-size; visualHalf is half the rendered image size, always
-    // item.size/2 regardless of bodyScale).
-    const collisionHalf = ITEMS.map((item) => item.size * ((item.bodyScale ?? BODY_SCALE) / 2));
-    const visualHalf = ITEMS.map((item) => item.size / 2);
+    // hitbox half-size; visualHalf is half the rendered, on-screen image size,
+    // always item.size*scale/2 regardless of bodyScale).
+    const collisionHalf = ITEMS.map((item) => item.size * scale * ((item.bodyScale ?? BODY_SCALE) / 2));
+    const visualHalf = ITEMS.map((item) => (item.size * scale) / 2);
     const bodies = ITEMS.map((item, i) => {
-      const scale = item.bodyScale ?? BODY_SCALE;
-      const body = Matter.Bodies.rectangle(targetX[i], spawnY[i], item.size * scale, item.size * scale, {
+      const bodyScale = item.bodyScale ?? BODY_SCALE;
+      const hitboxSize = item.size * scale * bodyScale;
+      const body = Matter.Bodies.rectangle(targetX[i], spawnY[i], hitboxSize, hitboxSize, {
         density: item.density,
         friction: item.friction,
         restitution: item.restitution,
         frictionAir: item.frictionAir,
         angle: (item.rotate * Math.PI) / 180,
-        chamfer: { radius: item.size * scale * 0.4 },
+        chamfer: { radius: hitboxSize * 0.4 },
       });
       body.itemIndex = i;
       // Infinite inertia means collisions can still push the body around, but
@@ -137,6 +150,17 @@ export default function Jar() {
     });
     bodiesRef.current = bodies;
     Matter.World.add(engine.world, bodies);
+
+    // The DOM elements themselves were rendered at item.size (unscaled) in
+    // JSX, since scale isn't known until this effect measures the real
+    // container — correct them to the scaled size now, before the first
+    // paint of the physics-driven transform below.
+    itemElRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const px = `${ITEMS[i].size * scale}px`;
+      el.style.width = px;
+      el.style.height = px;
+    });
 
     // Every item drops straight down its assigned column (x pinned, see the
     // "landed" clamp in tick) until it actually touches the floor or another
@@ -289,6 +313,22 @@ export default function Jar() {
       const newWalls = makeWalls(r.width, r.height);
       wallsRef.current = newWalls;
       Matter.World.add(engine.world, newWalls);
+
+      // Keeps the rendered image sizes proportional after an orientation
+      // change or window resize. Bodies/hitboxes intentionally aren't
+      // rescaled here — a live mid-simulation rescale would need every body
+      // repositioned proportionally too, which is a lot of physics risk for
+      // an interaction (resizing an already-loaded page) far rarer than just
+      // loading the page at a given size. The existing hard-containment
+      // clamp above already snaps any now-out-of-bounds body back inside the
+      // new walls, so nothing escapes visibly — worst case is a small snap.
+      const newScale = Math.min(r.width / REFERENCE_WIDTH, 1);
+      itemElRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const px = `${ITEMS[i].size * newScale}px`;
+        el.style.width = px;
+        el.style.height = px;
+      });
     };
     const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(container);
@@ -310,12 +350,35 @@ export default function Jar() {
   return (
     <section
       className="flex flex-col items-center justify-center px-4 text-center"
-      style={{ minHeight: "calc(100vh - 5.5rem)" }}
+      style={{
+        // --taskbar-height is measured live from the actual header (see
+        // Taskbar.js) instead of a hardcoded rem guess, so this always
+        // equals exactly "one viewport minus however tall the sticky header
+        // really is right now" — on both the desktop and mobile nav rows,
+        // and even while the mobile menu is open. 4.375rem (70px) is only
+        // the pre-hydration fallback, matching the desktop row's measured
+        // height (the mobile row measures ~1px shorter, an imperceptible
+        // difference for that brief pre-JS moment). dvh rather than vh so
+        // mobile browsers' address-bar show/hide doesn't leave a sliver of
+        // WhatsInside peeking in or a gap of empty space below the fold.
+        "--available-height": "calc(100dvh - var(--taskbar-height, 4.375rem))",
+        minHeight: "var(--available-height)",
+      }}
     >
       <div
         ref={containerRef}
         className="relative w-full max-w-[380px] touch-none overflow-visible"
-        style={{ aspectRatio: "1412 / 2200" }}
+        style={{
+          aspectRatio: "1412 / 2200",
+          // Caps the jar art at 60% of the available height so it (and the
+          // heading/subtext below, given the other 40%) can never demand
+          // more vertical space than actually exists — on a short, wide
+          // viewport (a common laptop window) this binds and shrinks the
+          // jar; on a normal tall viewport max-w-[380px] above is what
+          // actually constrains it, so this has no effect there and the
+          // look is unchanged.
+          maxHeight: "calc(var(--available-height) * 0.6)",
+        }}
       >
         <Image
           src="/images/drawings/jar.png"
@@ -355,11 +418,20 @@ export default function Jar() {
           — by this point the items are well into their physics-driven fall,
           so the two motions read as concurrent rather than the whole hero
           animating in as one simultaneous blob. */}
+      {/* mt-10/mt-2 previously assumed a tall viewport; clamp()'s max bound
+          (2.5rem/0.5rem) matches those exact original values, so nothing
+          changes until the viewport actually gets short — same for the
+          heading's own min(9vw,9dvh): on a normal tall viewport 9dvh always
+          exceeds the clamp's 5rem ceiling so 9vw (the original behavior)
+          keeps winning; on a short-but-wide window (a common laptop size)
+          9dvh becomes the smaller term and the heading shrinks with the
+          available height instead of insisting on its full width-based
+          size. */}
       <motion.h1
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.5 }}
-        className="mt-10 font-singsong text-[clamp(2.5rem,8vw,5rem)] leading-none text-[#2460A4]"
+        className="mt-[clamp(1rem,5dvh,2.5rem)] font-singsong text-[clamp(2rem,min(9vw,9dvh),5rem)] leading-none text-[#2460A4]"
       >
         AMY WANG&apos;S JAR
       </motion.h1>
@@ -367,7 +439,7 @@ export default function Jar() {
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.6 }}
-        className="mt-2 font-roboto text-xl font-light text-gray-500"
+        className="mt-[clamp(0.25rem,1dvh,0.5rem)] font-roboto text-xl font-light text-gray-500"
       >
         Filled with tasteful design.
       </motion.p>

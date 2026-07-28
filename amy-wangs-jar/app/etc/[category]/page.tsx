@@ -6,20 +6,22 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
-import { useIsSm } from "@/components/WhatsInside/layout";
+import { useViewportWidth } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
 
 const REPEL_DEG = 7; // how far a neighbor shifts away from the hovered photo
 const MAX_ROTATE = 16; // deg, the outermost photos' tilt (fans in toward 0 at center)
 const HOVER_SCALE = 1.3;
+const PAGE_PADDING = 32; // matches this section's own px-4 on each side
 
-// Two size presets rather than fluid clamp()s — the arc math needs concrete
-// px values to place photos, so it reads off the same breakpoint as the rest
-// of the WhatsInside carousel/gallery split (see useIsSm).
-const SIZE = {
-  base: { circle: 260, radius: 175, box: 84 },
-  sm: { circle: 440, radius: 300, box: 140 },
-};
+// Desktop reference values — the old two fixed presets (a "base" and "sm"
+// tier) still left the base tier's own total width (radius*2+box = 434px)
+// wider than a 320-375px phone. Scaling every dimension by measured
+// available width / this reference's own total width guarantees the arc
+// never exceeds the viewport, at any width, instead of just at the two
+// sizes the presets happened to cover.
+const REFERENCE = { circle: 440, radius: 300, box: 140 };
+const REFERENCE_WIDTH = REFERENCE.radius * 2 + REFERENCE.box;
 
 // Plain helper, not a hook (no React state/effects) — safe to call after an
 // early return. Positions run along the top half of a circle: t=0 is 9
@@ -48,7 +50,7 @@ export default function EtcCategoryPage() {
   const category = ETC_CATEGORIES.find((c) => c.slug === params.category);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const isSm = useIsSm();
+  const viewportWidth = useViewportWidth();
 
   useEffect(() => {
     if (selectedIndex === null) return;
@@ -62,7 +64,11 @@ export default function EtcCategoryPage() {
   if (!category) notFound();
 
   const photos = ETC_PHOTOS[category.slug];
-  const { circle, radius, box } = isSm ? SIZE.sm : SIZE.base;
+  const available = Math.max(viewportWidth - PAGE_PADDING, 220);
+  const scale = viewportWidth === 0 ? 1 : Math.min(available / REFERENCE_WIDTH, 1);
+  const circle = REFERENCE.circle * scale;
+  const radius = REFERENCE.radius * scale;
+  const box = REFERENCE.box * scale;
   const positions = getArcPositions(photos.length, hoveredIndex, radius);
   const selected = selectedIndex !== null ? photos[selectedIndex] : null;
 
@@ -114,7 +120,7 @@ export default function EtcCategoryPage() {
                   src={photo.src}
                   alt={photo.caption}
                   fill
-                  sizes={`${box}px`}
+                  sizes={`${Math.round(box)}px`}
                   className="object-cover transition-[filter] duration-300"
                   style={{ filter: isHovered ? "grayscale(0) saturate(1.1)" : "grayscale(0.85) saturate(0.6)" }}
                 />

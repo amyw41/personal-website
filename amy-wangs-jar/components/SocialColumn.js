@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { pct } from "@/lib/frame";
 import { SOCIAL_LINKS } from "@/lib/social";
 
 function SocialIcon({ social }) {
@@ -17,8 +16,13 @@ function SocialIcon({ social }) {
 export default function SocialColumn() {
   return (
     <div
+      // Fixed px inset from the right edge rather than pct()'s left-based
+      // percentage — left:pct(1433) scaled with viewport width, so anywhere
+      // between the md breakpoint (768px) and ~919px it pushed this column
+      // partly off the right edge of the screen instead of staying pinned a
+      // constant distance from it.
       className="fixed z-40 hidden flex-col overflow-hidden rounded-[5px] border border-[#D9D9D9] bg-[#F2F2F2] md:flex"
-      style={{ left: pct(1433), top: 95 }}
+      style={{ right: 79, top: 95 }}
     >
       {SOCIAL_LINKS.map((social, i) => (
         <a

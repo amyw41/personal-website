@@ -5,16 +5,21 @@ import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { WHATS_INSIDE_ITEMS } from "@/lib/items";
-import { NEIGHBOR_SCALE, computeLayout, useIsSm } from "./layout";
+import { NEIGHBOR_SCALE, computeLayout, useViewportWidth } from "./layout";
 
 const ITEM_COUNT = WHATS_INSIDE_ITEMS.length;
 const ARROW_BUTTON_CLASS =
   "flex h-[2.25rem] w-[2.25rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
+// Ratio of the original desktop design (track height 448px at itemSize 360px)
+// — kept constant so the track always has enough headroom for the center
+// item's 1.3x hover/active scale without clipping it against overflow-hidden.
+const TRACK_HEIGHT_RATIO = 448 / 360;
 
 export default function Carousel() {
   const [index, setIndex] = useState(0);
-  const isSm = useIsSm();
-  const { spacing, containerWidth, gap } = computeLayout(isSm);
+  const viewportWidth = useViewportWidth();
+  const { itemSize, imageSize, spacing, containerWidth, gap } = computeLayout(viewportWidth);
+  const trackHeight = itemSize * TRACK_HEIGHT_RATIO;
 
   // Wraps so the carousel loops infinitely: index -1 becomes the last item,
   // index ITEM_COUNT becomes the first.
@@ -59,9 +64,10 @@ export default function Carousel() {
         </button>
 
         <div
-          className="relative h-[28rem] flex-shrink-0 overflow-hidden sm:h-[32rem]"
+          className="relative flex-shrink-0 overflow-hidden"
           style={{
             width: containerWidth,
+            height: trackHeight,
             // Fades items out toward the container's own edges instead of
             // hard-clipping them there — the overflow-hidden crop was
             // otherwise producing a visible straight edge as items slid
@@ -74,16 +80,18 @@ export default function Carousel() {
         >
           {/* Drag/swipe target: constrained to x:0 so it always springs back to
               center on release — handleDragEnd reads the drag offset to decide
-              whether the release should advance the index instead. Keyed on
-              the breakpoint so the one-time isSm correction (false -> real
-              value, see useIsSm) remounts this fresh instead of animating a
-              spring transition between the two spacings — without the key,
-              Framer Motion sees that as a prop change on an already-mounted
-              tree and springs the items from clustered-near-center out to
-              their real positions, which read as an unwanted "pop" on every
-              mount. */}
+              whether the release should advance the index instead. Keyed so
+              the one-time correction from the unmeasured (viewportWidth===0)
+              default to the real viewport width remounts this fresh instead
+              of animating a spring transition between the two — without the
+              key, Framer Motion sees that as a prop change on an
+              already-mounted tree and springs the items from clustered-near-
+              center out to their real positions, which read as an unwanted
+              "pop" on first paint. Later resizes (viewportWidth already
+              nonzero either way) don't remount, so they animate smoothly
+              instead of popping. */}
           <motion.div
-            key={isSm ? "sm" : "base"}
+            key={viewportWidth === 0 ? "measuring" : "ready"}
             className="absolute inset-0 cursor-grab touch-pan-y active:cursor-grabbing"
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
@@ -117,15 +125,24 @@ export default function Carousel() {
                   initial={false}
                   animate={{ x: offset * spacing, scale }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  style={{ zIndex: 10 - dist, pointerEvents: dist > 1 ? "none" : "auto" }}
-                  className="absolute left-1/2 top-1/2 flex h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-4 sm:h-[440px] sm:w-[440px] sm:gap-6"
+                  style={{
+                    zIndex: 10 - dist,
+                    pointerEvents: dist > 1 ? "none" : "auto",
+                    width: itemSize,
+                    height: itemSize,
+                    gap: itemSize * (16 / 360),
+                  }}
+                  className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center"
                 >
-                  {/* Matches Gallery's image box exactly (h-64/72) so an item
-                      reads as the same size in both views. */}
+                  {/* Matches Gallery's image box exactly at desktop size (see
+                      IMAGE_RATIO in layout.ts) so an item reads as the same
+                      size in both views there; below that it scales down with
+                      the rest of the carousel to stay on-screen. */}
                   <motion.div
                     animate={{ opacity: imageOpacity }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="relative h-64 w-64 sm:h-72 sm:w-72"
+                    className="relative"
+                    style={{ width: imageSize, height: imageSize }}
                   >
                     <Image
                       src={item.image}
@@ -145,7 +162,11 @@ export default function Carousel() {
                   <motion.p
                     animate={{ opacity: textOpacity }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className={`max-w-[270px] text-center font-roboto font-light text-gray-500 ${isCenter ? "text-[14px]" : "text-[22px]"}`}
+                    style={{
+                      maxWidth: itemSize * (270 / 360),
+                      fontSize: itemSize * ((isCenter ? 14 : 22) / 360),
+                    }}
+                    className="text-center font-roboto font-light text-gray-500"
                   >
                     {item.description}
                   </motion.p>

@@ -68,17 +68,14 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="relative h-11 w-full bg-black">
-        <p
-          className="absolute whitespace-nowrap font-roboto text-sm text-white"
-          style={{ left: pct(29), top: 11 }}
-        >
+      {/* Below sm, these stack in normal flow instead of absolute-positioning
+          from opposite edges — at narrow widths the two nowrap strings had
+          nowhere to go but overlap each other in the middle. */}
+      <div className="relative flex w-full flex-col items-center gap-1 bg-black px-4 py-3 text-center sm:h-11 sm:px-0 sm:py-0 sm:text-left">
+        <p className="font-roboto text-sm text-white sm:absolute sm:left-[1.918%] sm:top-[11px]">
           Designed + coded by Amy (© 2026)
         </p>
-        <p
-          className="absolute whitespace-nowrap font-roboto text-sm text-white"
-          style={{ right: pct(29), top: 11 }}
-        >
+        <p className="font-roboto text-sm text-white sm:absolute sm:right-[1.918%] sm:top-[11px]">
           Looking for my{" "}
           <a
             href="https://amywang.framer.website"

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const NAV_LINKS = [
@@ -50,9 +50,35 @@ function NavLinks({ linkClassName, onLinkClick }) {
 
 export default function Taskbar() {
   const [open, setOpen] = useState(false);
+  const headerRef = useRef(null);
+
+  // Jar's hero section sizes itself to "the rest of the viewport below this
+  // header" — it needs this header's real rendered height, which differs
+  // between the desktop nav row and the mobile row, and grows further when
+  // the mobile menu opens. Measuring it here and exposing it as a CSS custom
+  // property on the root element means any component can read the true
+  // value without prop drilling, and it self-corrects if this markup ever
+  // changes, instead of drifting out of sync with a hardcoded rem guess.
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const setHeightVar = () => {
+      document.documentElement.style.setProperty("--taskbar-height", `${header.getBoundingClientRect().height}px`);
+    };
+    setHeightVar();
+
+    // Also re-measures on every subsequent change to this header's own box —
+    // a breakpoint switch (desktop row <-> mobile row), the mobile menu
+    // opening/closing, or a font swap reflowing the nav text — not just the
+    // one-time initial measurement above.
+    const resizeObserver = new ResizeObserver(setHeightVar);
+    resizeObserver.observe(header);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
+    <header ref={headerRef} className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white">
       <div className="hidden w-full grid-cols-3 items-center px-8 py-3 md:grid">
         <Logo linkClassName="flex w-fit items-center justify-self-start self-start" />
 
