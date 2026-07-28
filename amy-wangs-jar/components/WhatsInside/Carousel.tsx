@@ -9,7 +9,7 @@ import { NEIGHBOR_SCALE, computeLayout, useIsSm } from "./layout";
 
 const ITEM_COUNT = WHATS_INSIDE_ITEMS.length;
 const ARROW_BUTTON_CLASS =
-  "flex h-[2.625rem] w-[2.625rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
+  "flex h-[2.25rem] w-[2.25rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
 
 export default function Carousel() {
   const [index, setIndex] = useState(0);
@@ -55,12 +55,22 @@ export default function Carousel() {
           aria-label="Previous item"
           className={ARROW_BUTTON_CLASS}
         >
-          <ChevronLeft size={27} strokeWidth={1.25} />
+          <ChevronLeft size={23} strokeWidth={1.25} />
         </button>
 
         <div
           className="relative h-[28rem] flex-shrink-0 overflow-hidden sm:h-[32rem]"
-          style={{ width: containerWidth }}
+          style={{
+            width: containerWidth,
+            // Fades items out toward the container's own edges instead of
+            // hard-clipping them there — the overflow-hidden crop was
+            // otherwise producing a visible straight edge as items slid
+            // past it.
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
+            maskImage:
+              "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
+          }}
         >
           {/* Drag/swipe target: constrained to x:0 so it always springs back to
               center on release — handleDragEnd reads the drag offset to decide
@@ -102,6 +112,8 @@ export default function Carousel() {
                   key={item.id}
                   onClick={() => goTo(i)}
                   aria-label={`Show ${item.name}`}
+                  aria-hidden={dist > 1}
+                  tabIndex={dist > 1 ? -1 : 0}
                   initial={false}
                   animate={{ x: offset * spacing, scale }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -149,20 +161,20 @@ export default function Carousel() {
           aria-label="Next item"
           className={ARROW_BUTTON_CLASS}
         >
-          <ChevronRight size={27} strokeWidth={1.25} />
+          <ChevronRight size={23} strokeWidth={1.25} />
         </button>
       </motion.div>
 
-      <div className="mt-12 flex items-center justify-center gap-3">
+      <div className="mt-20 flex items-center justify-center gap-3">
         {WHATS_INSIDE_ITEMS.map((item, i) => (
           <button
             key={item.id}
             type="button"
             onClick={() => goTo(i)}
             aria-label={`Go to ${item.name}`}
-            className={`h-[0.9375rem] w-[0.9375rem] rounded-full border transition-colors ${i === index
-              ? "border-[#2460A4] bg-[#2460A4]"
-              : "border-black/50 bg-transparent hover:border-[#2460A4]"
+            className={`rounded-full border transition-all ${i === index
+              ? "h-[1.125rem] w-[1.125rem] border-[#2460A4] bg-[#2460A4]"
+              : "h-[0.9375rem] w-[0.9375rem] border-black/50 bg-transparent hover:border-[#2460A4]"
               }`}
           />
         ))}

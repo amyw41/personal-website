@@ -22,6 +22,10 @@ export default function WhatsInside() {
   const { totalWidth } = computeLayout(isSm);
 
   return (
+    // pt-36/pb-36 are equal on purpose: this section is self-contained, like
+    // Jar's own min-height + flex centering. Don't tune either value to
+    // compensate for spacing elsewhere (e.g. margin-top on Footer) — that
+    // coupling is exactly what made this fragile before.
     <section className="mx-auto w-full max-w-[96rem] px-4 pb-36 pt-36 text-center">
       <motion.h2
         initial={{ opacity: 0, y: 40 }}
@@ -47,7 +51,7 @@ export default function WhatsInside() {
               type="button"
               onClick={() => setView(v.id)}
               aria-pressed={view === v.id}
-              className={`px-6 py-1 transition-colors ${i === 0 ? "border-r border-[#2460A4]" : ""} ${view === v.id
+              className={`px-8 py-0.5 transition-colors ${i === 0 ? "border-r border-[#2460A4]" : ""} ${view === v.id
                 ? "bg-[#2460A4] text-white"
                 : "bg-white text-[#2460A4] hover:bg-[#BFDBFE]"
                 }`}

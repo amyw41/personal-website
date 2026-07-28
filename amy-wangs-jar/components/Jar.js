@@ -28,29 +28,32 @@ const ITEMS = [
   // lowest); digi sits at the very front. left values put skullpanda on the
   // left, handcream in the middle, digi on the right — fallOrder is ordered
   // to match (left-to-right entrance sweep for this trio).
-  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 25, size: 180, rotate: -15, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
-  { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 50, size: 170, rotate: 75, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 10, lockRotation: true, bodyScale: 0.22 },
-  { src: "/images/items/kitty-mirror.png", alt: "Hello Kitty stand mirror", top: 74, left: 24, size: 170, rotate: 25, density: 0.001, friction: 0.3, restitution: 0.35, frictionAir: 0.01, fallOrder: 7, lockRotation: true },
-  { src: "/images/items/bingsu.png", alt: "Bingsu ice cream cup", top: 66, left: 48, size: 160, rotate: -10, density: 0.0009, friction: 0.4, restitution: 0.2, frictionAir: 0.015, fallOrder: 6 },
-  { src: "/images/items/hufflepuff.png", alt: "Hufflepuff patch", top: 60, left: 28, size: 200, rotate: -6, density: 0.0003, friction: 0.7, restitution: 0.1, frictionAir: 0.03, fallOrder: 8 },
-  { src: "/images/items/ballet.png", alt: "Ballet shoes", top: 93, left: 78, size: 155, rotate: -8, density: 0.0005, friction: 0.5, restitution: 0.15, frictionAir: 0.02, fallOrder: 0 },
-  { src: "/images/items/bottle.png", alt: "Pink water bottle", top: 74, left: 80, size: 185, rotate: 90, density: 0.002, friction: 0.35, restitution: 0.15, frictionAir: 0.008, fallOrder: 4, lockRotation: true },
-  { src: "/images/items/chips.png", alt: "Turtle Chips snack bag", top: 82, left: 32, size: 165, rotate: -3, density: 0.0004, friction: 0.5, restitution: 0.2, frictionAir: 0.025, fallOrder: 3 },
-  { src: "/images/items/pineapple.png", alt: "Pineapple drink can", top: 85, left: 20, size: 150, rotate: -4, density: 0.0016, friction: 0.25, restitution: 0.3, frictionAir: 0.008, fallOrder: 2 },
-  { src: "/images/items/kitty-plush.png", alt: "Hello Kitty plush toy", top: 77, left: 58, size: 220, rotate: -12, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 5, lockRotation: true },
-  { src: "/images/items/laneige.png", alt: "Laneige lip balm tube", top: 92, left: 44, size: 175, rotate: 70, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 1, lockRotation: true, bodyScale: 0.22 },
-  { src: "/images/items/digi.png", alt: "Digital camera with beaded strap", top: 88, left: 70, size: 190, rotate: 20, density: 0.0012, friction: 0.4, restitution: 0.2, frictionAir: 0.012, fallOrder: 11, lockRotation: true },
+  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 25, size: 180, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
+  { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 50, size: 180, rotate: 0, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 10, lockRotation: true, bodyScale: 0.22 },
+  { src: "/images/items/kitty-mirror.png", alt: "Hello Kitty stand mirror", top: 74, left: 24, size: 180, rotate: 0, density: 0.001, friction: 0.3, restitution: 0.35, frictionAir: 0.01, fallOrder: 7, lockRotation: true },
+  { src: "/images/items/bingsu.png", alt: "Bingsu ice cream cup", top: 66, left: 48, size: 180, rotate: 0, density: 0.0009, friction: 0.4, restitution: 0.2, frictionAir: 0.015, fallOrder: 6 },
+  { src: "/images/items/hufflepuff.png", alt: "Hufflepuff patch", top: 60, left: 28, size: 180, rotate: 0, density: 0.0003, friction: 0.7, restitution: 0.1, frictionAir: 0.03, fallOrder: 8 },
+  { src: "/images/items/ballet.png", alt: "Ballet shoes", top: 93, left: 78, size: 180, rotate: 0, density: 0.0005, friction: 0.5, restitution: 0.15, frictionAir: 0.02, fallOrder: 0 },
+  { src: "/images/items/bottle.png", alt: "Pink water bottle", top: 74, left: 80, size: 180, rotate: 0, density: 0.002, friction: 0.35, restitution: 0.15, frictionAir: 0.008, fallOrder: 4, lockRotation: true },
+  { src: "/images/items/chips.png", alt: "Turtle Chips snack bag", top: 82, left: 32, size: 180, rotate: 0, density: 0.0004, friction: 0.5, restitution: 0.2, frictionAir: 0.025, fallOrder: 3 },
+  { src: "/images/items/pineapple.png", alt: "Pineapple drink can", top: 85, left: 20, size: 180, rotate: 0, density: 0.0016, friction: 0.25, restitution: 0.3, frictionAir: 0.008, fallOrder: 2 },
+  { src: "/images/items/kitty-plush.png", alt: "Hello Kitty plush toy", top: 77, left: 58, size: 180, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 5, lockRotation: true },
+  { src: "/images/items/laneige.png", alt: "Laneige lip balm tube", top: 92, left: 44, size: 180, rotate: 0, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 1, lockRotation: true, bodyScale: 0.22 },
+  { src: "/images/items/digi.png", alt: "Digital camera with beaded strap", top: 88, left: 70, size: 180, rotate: 0, density: 0.0012, friction: 0.4, restitution: 0.2, frictionAir: 0.012, fallOrder: 11, lockRotation: true },
 ];
 
 // Fraction of the jar container's own box (0-1). Approximates the lower body
 // of the hand-drawn glass outline as a few straight wall segments — jar.png is
 // a raster illustration with no exposed path data, so this is a deliberate
-// simplification, not a pixel-traced match to the drawn curve.
+// simplification, not a pixel-traced match to the drawn curve. Re-measured
+// against the current jar.png (its neck/shoulder sits much higher in the
+// frame than the previous artwork did, so topY in particular is not a small
+// tweak away from the old value).
 const WALLS = {
-  leftX: 0.11,
-  rightX: 0.89,
-  topY: 0.42,
-  floorY: 0.94,
+  leftX: 0.12,
+  rightX: 0.88,
+  topY: 0.25,
+  floorY: 0.9,
 };
 
 const MAX_SPEED = 18; // px/tick — keeps items from tunneling through walls or flinging out
@@ -109,6 +112,12 @@ export default function Jar() {
       spawnCursor += ITEMS[i].size + 30;
     });
     const targetX = ITEMS.map((item) => (item.left / 100) * width);
+    // Both "half" values are constant for the component's lifetime — precomputed
+    // once here instead of recomputed every tick (collisionHalf is the physics
+    // hitbox half-size; visualHalf is half the rendered image size, always
+    // item.size/2 regardless of bodyScale).
+    const collisionHalf = ITEMS.map((item) => item.size * ((item.bodyScale ?? BODY_SCALE) / 2));
+    const visualHalf = ITEMS.map((item) => item.size / 2);
     const bodies = ITEMS.map((item, i) => {
       const scale = item.bodyScale ?? BODY_SCALE;
       const body = Matter.Bodies.rectangle(targetX[i], spawnY[i], item.size * scale, item.size * scale, {
@@ -193,7 +202,7 @@ export default function Jar() {
         const rightBound = currentWalls[1].bounds.min.x;
         const floorBound = currentWalls[2].bounds.min.y;
         bodies.forEach((body, i) => {
-          const half = ITEMS[i].size * ((ITEMS[i].bodyScale ?? BODY_SCALE) / 2);
+          const half = collisionHalf[i];
           let { x, y } = body.position;
           let vx = body.velocity.x;
           let vy = body.velocity.y;
@@ -237,7 +246,7 @@ export default function Jar() {
         bodies.forEach((body, i) => {
           const el = itemElRefs.current[i];
           if (!el) return;
-          const half = ITEMS[i].size / 2;
+          const half = visualHalf[i];
           el.style.transform = `translate(${body.position.x - half}px, ${body.position.y - half}px) rotate(${body.angle}rad)`;
         });
       } catch (err) {
@@ -313,6 +322,13 @@ export default function Jar() {
           alt="Outline illustration of a jar"
           fill
           priority
+          // Turbopack's dev-mode image-optimization cache doesn't bust when
+          // this file is replaced at the same path (it keeps serving the
+          // first-ever encode indefinitely) — this artwork gets swapped
+          // often during design iteration, so skip the optimizer in dev to
+          // always show the current file. Production still gets normal
+          // next/image optimization.
+          unoptimized={process.env.NODE_ENV !== "production"}
           className="pointer-events-none object-contain"
         />
         {ITEMS.map((item, i) => (

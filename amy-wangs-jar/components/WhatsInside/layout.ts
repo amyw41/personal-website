@@ -3,8 +3,8 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 
 export const NEIGHBOR_SCALE = 0.72;
-// Must match the arrow buttons' own h-[2.625rem] w-[2.625rem] Tailwind class.
-export const ARROW_SIZE = 42;
+// Must match the arrow buttons' own h-[2.25rem] w-[2.25rem] Tailwind class.
+export const ARROW_SIZE = 36;
 
 // Item box size and the gap we want between every element (arrow-neighbor,
 // neighbor-center, center-neighbor, neighbor-arrow) at each breakpoint —

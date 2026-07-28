@@ -13,11 +13,14 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
     <motion.div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+      tabIndex={0}
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.5, ease: "easeOut", delay: column * 0.08 }}
-      className="relative flex flex-col items-center rounded-2xl p-9"
+      className="relative flex flex-col items-center rounded-2xl p-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2460A4]"
     >
       <motion.div
         animate={{ opacity: hovered ? 1 : 0, scale: hovered ? 1 : 0.6 }}
@@ -28,7 +31,7 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
       </motion.div>
 
       <motion.div
-        animate={{ opacity: hovered ? 1 : 0.5, scale: hovered ? 1.15 : 1.1 }}
+        animate={{ opacity: hovered ? 1 : 0.5, scale: hovered ? 1.15 : 1.12 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
         className="relative h-64 w-64 sm:h-72 sm:w-72"
       >
@@ -44,7 +47,7 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
 
       <motion.div
         initial={false}
-        animate={{ opacity: hovered ? 1 : 0, y: hovered ? 0 : 8 }}
+        animate={{ opacity: hovered ? 1 : 0.5, y: hovered ? 0 : 8 }}
         transition={{ duration: 0.2 }}
         className="mt-9 text-center"
       >

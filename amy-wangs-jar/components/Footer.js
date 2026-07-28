@@ -1,19 +1,18 @@
 import { pct } from "@/lib/frame";
+import { SOCIAL_LINKS } from "@/lib/social";
 
 // Vertical offsets below stay literal since they're small positions inside
 // fixed-height bars, not values meant to stretch with width.
 const REPEAT_COUNT = 8;
 
-// TODO: swap these "#" placeholders for Amy's real social profile URLs.
-const SOCIAL_TEXT_LINKS = [
-  { label: "Linkedin", href: "#" },
-  { label: "Email", href: "#" },
-  { label: "X / Twitter", href: "#" },
-];
+const SOCIAL_TEXT_LINKS = SOCIAL_LINKS.filter((s) => s.inFooter).map((s) => ({
+  label: s.footerLabel ?? s.label,
+  href: s.href,
+}));
 
-function MarqueeGroup({ ariaHidden }) {
+function MarqueeGroup() {
   return (
-    <div className="flex shrink-0 items-center" aria-hidden={ariaHidden}>
+    <div className="flex shrink-0 items-center">
       {Array.from({ length: REPEAT_COUNT }).map((_, i) => (
         <span
           key={i}
@@ -28,7 +27,10 @@ function MarqueeGroup({ ariaHidden }) {
 
 export default function Footer() {
   return (
-    <footer className="mt-auto w-full">
+    // pt-24 is the "space before Footer" rule — it lives here instead of as
+    // padding-bottom on <main> so it's Footer's own responsibility regardless
+    // of which section happens to render last above it.
+    <footer className="mt-auto w-full pt-24">
       <div className="relative h-[350px] w-full overflow-hidden bg-[#2460A4]">
         <div className="absolute inset-x-0 top-0 h-[70px]">
           <div
@@ -52,10 +54,16 @@ export default function Footer() {
         </div>
 
         {/* Centered in the space between the social row above and the black bar below, so it stays equidistant from both regardless of the marquee's rendered font size at each breakpoint. */}
-        <div className="absolute inset-x-0 bottom-0 top-[70px] flex items-center overflow-hidden">
+        {/* Purely decorative repeating banner — hidden from assistive tech as
+            a whole (rather than leaving the first copy exposed) since it's
+            the same phrase read out 8 times in a row with no unique info. */}
+        <div
+          className="absolute inset-x-0 bottom-0 top-[70px] flex items-center overflow-hidden"
+          aria-hidden="true"
+        >
           <div className="flex w-max animate-marquee">
             <MarqueeGroup />
-            <MarqueeGroup ariaHidden="true" />
+            <MarqueeGroup />
           </div>
         </div>
       </div>

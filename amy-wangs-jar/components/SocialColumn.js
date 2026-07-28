@@ -1,22 +1,15 @@
 import Image from "next/image";
 import { pct } from "@/lib/frame";
-
-// TODO: swap these "#" placeholders for Amy's real social profile URLs.
-const SOCIAL_LINKS = [
-  { label: "LinkedIn", href: "https://www.linkedin.com/in/amyw41/", src: "/images/linkedin.png" },
-  { label: "Email", href: "mailto:amy.wang1@uwaterloo.ca", src: "/images/gmail.png" },
-  { label: "TikTok", href: "https://www.tiktok.com/@amyb3rrie", src: "/images/logos/tiktok.png" },
-  { label: "X", href: "https://x.com/apriberri", src: "/images/twitter.png" },
-];
+import { SOCIAL_LINKS } from "@/lib/social";
 
 function SocialIcon({ social }) {
   return (
     <Image
-      src={social.src}
+      src={social.icon}
       alt={social.label}
       width={34}
       height={34}
-      className="h-[34px] w-[34px] object-contain transition-transform duration-150 hover:scale-110"
+      className="h-[34px] w-[34px] object-contain transition-transform duration-150 hover:scale-102"
     />
   );
 }
@@ -34,9 +27,8 @@ export default function SocialColumn() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={social.label}
-          className={`flex h-12 w-12 items-center justify-center text-gray-500 transition-colors hover:text-gray-800 ${
-            i < SOCIAL_LINKS.length - 1 ? "border-b border-[#D9D9D9]" : ""
-          }`}
+          className={`flex h-12 w-12 items-center justify-center text-gray-500 transition-colors hover:text-gray-800 ${i < SOCIAL_LINKS.length - 1 ? "border-b border-[#D9D9D9]" : ""
+            }`}
         >
           <SocialIcon social={social} />
         </a>
