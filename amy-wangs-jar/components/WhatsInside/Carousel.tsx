@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { WHATS_INSIDE_ITEMS } from "@/lib/items";
 import { NEIGHBOR_SCALE, computeLayout, useIsSm } from "./layout";
 
 const ITEM_COUNT = WHATS_INSIDE_ITEMS.length;
 const ARROW_BUTTON_CLASS =
-  "flex h-[2.625rem] w-[2.625rem] flex-shrink-0 items-center justify-center rounded-full border border-black bg-white text-black transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
+  "flex h-[2.625rem] w-[2.625rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
 
 export default function Carousel() {
   const [index, setIndex] = useState(0);
@@ -34,8 +34,6 @@ export default function Carousel() {
     if (info.offset.x < -threshold) goTo(index + 1);
     else if (info.offset.x > threshold) goTo(index - 1);
   };
-
-  const active = WHATS_INSIDE_ITEMS[index];
 
   return (
     <div>
@@ -91,7 +89,12 @@ export default function Carousel() {
               // beyond its normal 1:1 size, rather than just avoiding the
               // neighbor shrink — a more dramatic "featured item" emphasis.
               const scale = isCenter ? 1.3 : dist === 1 ? NEIGHBOR_SCALE : 0.55;
-              const opacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
+              // Image dimming stays as before (fully hidden past the immediate
+              // neighbors); subtext gets its own, slightly different scheme —
+              // always visible at 50% once it's not the main item — so it's
+              // driven by a separate opacity value instead of reusing `image`.
+              const imageOpacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
+              const textOpacity = isCenter ? 1 : dist === 1 ? 0.5 : 0;
 
               return (
                 <motion.button
@@ -100,14 +103,18 @@ export default function Carousel() {
                   onClick={() => goTo(i)}
                   aria-label={`Show ${item.name}`}
                   initial={false}
-                  animate={{ x: offset * spacing, scale, opacity }}
+                  animate={{ x: offset * spacing, scale }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   style={{ zIndex: 10 - dist, pointerEvents: dist > 1 ? "none" : "auto" }}
-                  className="absolute left-1/2 top-1/2 flex h-[387px] w-[387px] -translate-x-1/2 -translate-y-1/2 items-center justify-center sm:h-[469px] sm:w-[469px]"
+                  className="absolute left-1/2 top-1/2 flex h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-4 sm:h-[440px] sm:w-[440px] sm:gap-6"
                 >
                   {/* Matches Gallery's image box exactly (h-64/72) so an item
                       reads as the same size in both views. */}
-                  <div className="relative h-64 w-64 sm:h-72 sm:w-72">
+                  <motion.div
+                    animate={{ opacity: imageOpacity }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="relative h-64 w-64 sm:h-72 sm:w-72"
+                  >
                     <Image
                       src={item.image}
                       alt={item.name}
@@ -116,7 +123,20 @@ export default function Carousel() {
                       draggable={false}
                       className="pointer-events-none select-none object-contain"
                     />
-                  </div>
+                    {isCenter && (
+                      <div className="absolute right-2 top-2 flex h-[1.875rem] w-[1.875rem] items-center justify-center rounded-full bg-[#2460A4] text-white">
+                        <Star size={15} strokeWidth={2.5} fill="currentColor" />
+                      </div>
+                    )}
+                  </motion.div>
+
+                  <motion.p
+                    animate={{ opacity: textOpacity }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className={`max-w-[270px] text-center font-roboto font-light text-gray-500 ${isCenter ? "text-[14px]" : "text-[22px]"}`}
+                  >
+                    {item.description}
+                  </motion.p>
                 </motion.button>
               );
             })}
@@ -133,16 +153,6 @@ export default function Carousel() {
         </button>
       </motion.div>
 
-      <motion.div
-        key={active.id}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        className="mx-auto mt-3 flex min-h-[4.5rem] max-w-[16rem] items-center justify-center text-center"
-      >
-        <p className="font-roboto text-base text-gray-500">{active.description}</p>
-      </motion.div>
-
       <div className="mt-12 flex items-center justify-center gap-3">
         {WHATS_INSIDE_ITEMS.map((item, i) => (
           <button
@@ -150,11 +160,10 @@ export default function Carousel() {
             type="button"
             onClick={() => goTo(i)}
             aria-label={`Go to ${item.name}`}
-            className={`h-[0.9375rem] w-[0.9375rem] rounded-full border transition-colors ${
-              i === index
-                ? "border-[#2460A4] bg-[#2460A4]"
-                : "border-black bg-transparent hover:border-[#2460A4]"
-            }`}
+            className={`h-[0.9375rem] w-[0.9375rem] rounded-full border transition-colors ${i === index
+              ? "border-[#2460A4] bg-[#2460A4]"
+              : "border-black/50 bg-transparent hover:border-[#2460A4]"
+              }`}
           />
         ))}
       </div>

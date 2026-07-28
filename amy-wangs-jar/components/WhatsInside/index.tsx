@@ -40,18 +40,17 @@ export default function WhatsInside() {
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
         className="mt-6 flex items-center justify-center"
       >
-        <div className="inline-flex overflow-hidden rounded-[5px] border border-[#2460A4] font-instrument-sans text-lg font-normal">
+        <div className="inline-flex overflow-hidden rounded-[5px] border border-[#2460A4] font-instrument-sans text-[16px] font-normal">
           {VIEWS.map((v, i) => (
             <button
               key={v.id}
               type="button"
               onClick={() => setView(v.id)}
               aria-pressed={view === v.id}
-              className={`px-6 py-1 transition-colors ${i === 0 ? "border-r border-[#2460A4]" : ""} ${
-                view === v.id
-                  ? "bg-[#2460A4] text-white"
-                  : "bg-white text-[#2460A4] hover:bg-[#BFDBFE]"
-              }`}
+              className={`px-6 py-1 transition-colors ${i === 0 ? "border-r border-[#2460A4]" : ""} ${view === v.id
+                ? "bg-[#2460A4] text-white"
+                : "bg-white text-[#2460A4] hover:bg-[#BFDBFE]"
+                }`}
             >
               {v.label}
             </button>
@@ -64,7 +63,7 @@ export default function WhatsInside() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-        className="mx-auto mt-28"
+        className="mx-auto mt-26"
         style={{ width: totalWidth, maxWidth: "100%" }}
       >
         <AnimatePresence mode="wait">
@@ -74,6 +73,7 @@ export default function WhatsInside() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
+            className={view === "gallery" ? "mt-[2px]" : undefined}
           >
             {view === "gallery" ? <Gallery /> : <Carousel />}
           </motion.div>

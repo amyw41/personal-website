@@ -10,8 +10,8 @@ export const ARROW_SIZE = 42;
 // neighbor-center, center-neighbor, neighbor-arrow) at each breakpoint —
 // matches the sm: breakpoint used by the item box's own Tailwind classes.
 export const LAYOUT = {
-  base: { itemSize: 387, gap: 29 },
-  sm: { itemSize: 469, gap: 43 },
+  base: { itemSize: 360, gap: 29 },
+  sm: { itemSize: 440, gap: 43 },
 };
 
 // Deriving spacing/container width FROM the desired gap (rather than the

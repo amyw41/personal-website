@@ -24,6 +24,12 @@ import { motion } from "framer-motion";
 // export, not final assets) — a few background items are genuine guesses
 // where the wireframe only shows a sliver (kitty-mirror / bottle placement).
 const ITEMS = [
+  // skullpanda + handcream sit at the back of the stack (drawn first = z-index
+  // lowest); digi sits at the very front. left values put skullpanda on the
+  // left, handcream in the middle, digi on the right — fallOrder is ordered
+  // to match (left-to-right entrance sweep for this trio).
+  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 25, size: 180, rotate: -15, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
+  { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 50, size: 170, rotate: 75, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 10, lockRotation: true, bodyScale: 0.22 },
   { src: "/images/items/kitty-mirror.png", alt: "Hello Kitty stand mirror", top: 74, left: 24, size: 170, rotate: 25, density: 0.001, friction: 0.3, restitution: 0.35, frictionAir: 0.01, fallOrder: 7, lockRotation: true },
   { src: "/images/items/bingsu.png", alt: "Bingsu ice cream cup", top: 66, left: 48, size: 160, rotate: -10, density: 0.0009, friction: 0.4, restitution: 0.2, frictionAir: 0.015, fallOrder: 6 },
   { src: "/images/items/hufflepuff.png", alt: "Hufflepuff patch", top: 60, left: 28, size: 200, rotate: -6, density: 0.0003, friction: 0.7, restitution: 0.1, frictionAir: 0.03, fallOrder: 8 },
@@ -33,9 +39,7 @@ const ITEMS = [
   { src: "/images/items/pineapple.png", alt: "Pineapple drink can", top: 85, left: 20, size: 150, rotate: -4, density: 0.0016, friction: 0.25, restitution: 0.3, frictionAir: 0.008, fallOrder: 2 },
   { src: "/images/items/kitty-plush.png", alt: "Hello Kitty plush toy", top: 77, left: 58, size: 220, rotate: -12, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 5, lockRotation: true },
   { src: "/images/items/laneige.png", alt: "Laneige lip balm tube", top: 92, left: 44, size: 175, rotate: 70, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 1, lockRotation: true, bodyScale: 0.22 },
-  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 55, size: 180, rotate: -15, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
-  { src: "/images/items/digi.png", alt: "Digital camera with beaded strap", top: 88, left: 60, size: 190, rotate: 20, density: 0.0012, friction: 0.4, restitution: 0.2, frictionAir: 0.012, fallOrder: 10, lockRotation: true },
-  { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 68, size: 170, rotate: 75, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 11, lockRotation: true, bodyScale: 0.22 },
+  { src: "/images/items/digi.png", alt: "Digital camera with beaded strap", top: 88, left: 70, size: 190, rotate: 20, density: 0.0012, friction: 0.4, restitution: 0.2, frictionAir: 0.012, fallOrder: 11, lockRotation: true },
 ];
 
 // Fraction of the jar container's own box (0-1). Approximates the lower body

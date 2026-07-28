@@ -28,7 +28,7 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
       </motion.div>
 
       <motion.div
-        animate={{ opacity: hovered ? 1 : 0.5, scale: hovered ? 1.15 : 1 }}
+        animate={{ opacity: hovered ? 1 : 0.5, scale: hovered ? 1.15 : 1.1 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
         className="relative h-64 w-64 sm:h-72 sm:w-72"
       >
