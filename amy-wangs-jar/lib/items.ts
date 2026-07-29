@@ -16,7 +16,7 @@ export const WHATS_INSIDE_ITEMS: WhatsInsideItem[] = [
     name: "Ballet Shoes",
     image: "/images/items/ballet.png",
     accent: "#F5D8DE",
-    description: "I've been dancing since I was 4. I'm currently relearning ballet pointe!",
+    description: "I've been dancing since I was 4. I'm currently relearning ballet pointe.",
   },
   {
     id: "kitty-mirror",
