@@ -28,7 +28,7 @@ const ITEMS = [
   // lowest); digi sits at the very front. left values put skullpanda on the
   // left, handcream in the middle, digi on the right — fallOrder is ordered
   // to match (left-to-right entrance sweep for this trio).
-  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 25, size: 180, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
+  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 32, size: 180, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
   { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 50, size: 180, rotate: 0, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 10, lockRotation: true, bodyScale: 0.22 },
   { src: "/images/items/kitty-mirror.png", alt: "Hello Kitty stand mirror", top: 74, left: 24, size: 180, rotate: 0, density: 0.001, friction: 0.3, restitution: 0.35, frictionAir: 0.01, fallOrder: 7, lockRotation: true },
   { src: "/images/items/bingsu.png", alt: "Bingsu ice cream cup", top: 66, left: 48, size: 180, rotate: 0, density: 0.0009, friction: 0.4, restitution: 0.2, frictionAir: 0.015, fallOrder: 6 },

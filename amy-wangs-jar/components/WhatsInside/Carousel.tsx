@@ -160,13 +160,22 @@ export default function Carousel() {
                   </motion.div>
 
                   <motion.p
-                    animate={{ opacity: textOpacity }}
+                    // `scale` here (a plain CSS transform, layered on top of the
+                    // button's own scale) is what makes the centered item's text
+                    // read a bit smaller than a flat 1.3x — unlike fontSize, a
+                    // transform is applied after layout, so it can't change how
+                    // the text wraps. fontSize/maxWidth below stay fixed across
+                    // focus states for that same reason: the line count a given
+                    // description wraps to never changes, so the box's footprint
+                    // is identical whether an item is focused or not, and any
+                    // overflow is trimmed by the ellipsis instead of resizing it.
+                    animate={{ opacity: textOpacity, scale: isCenter ? 0.75 : 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     style={{
                       maxWidth: itemSize * (270 / 360),
-                      fontSize: itemSize * ((isCenter ? 14 : 22) / 360),
+                      fontSize: itemSize * (16 / 360),
                     }}
-                    className="text-center font-roboto font-light text-gray-500"
+                    className="line-clamp-2 text-center font-roboto font-light text-gray-500"
                   >
                     {item.description}
                   </motion.p>
