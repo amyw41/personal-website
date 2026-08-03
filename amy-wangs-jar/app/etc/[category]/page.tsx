@@ -44,7 +44,14 @@ function getArcSlot(offsetDeg: number, radius: number) {
 export default function EtcCategoryPage() {
   const params = useParams<{ category: string }>();
   const category = ETC_CATEGORIES.find((c) => c.slug === params.category);
-  const [index, setIndex] = useState(0);
+  // Unwrapped step count (can grow past ±photoCount across many clicks) —
+  // not the wrapped photo index. The whole row rotates by exactly one
+  // angleStep per step change (see the wheel motion.div below), so this one
+  // value driving a single spring is what makes the whole belt move as one
+  // rigid unit instead of every item re-targeting its own position
+  // independently. `index` (the actual centered photo) is just step mod
+  // photoCount, derived below once photoCount is known.
+  const [step, setStep] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const viewportWidth = useViewportWidth();
   // Exactly the home page carousel's own layout math — same item size,
@@ -59,14 +66,14 @@ export default function EtcCategoryPage() {
   // next — without this fix, whichever photo is mid-flip that render
   // animates a full sweep across the arc instead of just popping (invisibly,
   // since it's off the visible tier either way) to its new spot.
-  const lastCenterIndexRef = useRef(-1);
+  const lastStepRef = useRef(-1);
   const prevOffsetsRef = useRef<Map<number, number>>(new Map());
   const workingOffsetsRef = useRef<Map<number, number>>(new Map());
   const jumpEpochRef = useRef<Map<number, number>>(new Map());
 
   useEffect(() => {
-    setIndex(0);
-    lastCenterIndexRef.current = -1;
+    setStep(0);
+    lastStepRef.current = -1;
     prevOffsetsRef.current = new Map();
     workingOffsetsRef.current = new Map();
     jumpEpochRef.current = new Map();
@@ -85,16 +92,19 @@ export default function EtcCategoryPage() {
 
   const photos = ETC_PHOTOS[category.slug];
   const photoCount = photos.length;
+  const index = photoCount === 0 ? 0 : ((step % photoCount) + photoCount) % photoCount;
 
-  const goTo = (i: number) => {
-    if (photoCount === 0) return;
-    setIndex(((i % photoCount) + photoCount) % photoCount);
-  };
+  // Advances by exactly one wheel step (±1) — every navigation action
+  // (arrows, clicking a neighbor, drag release) is a single step, so this is
+  // the only thing that ever changes `step`. Never wraps: letting it grow
+  // unbounded is what lets the wheel's own rotation (see angleStepDeg below)
+  // keep spinning smoothly through a loop boundary instead of snapping back.
+  const advance = (delta: number) => setStep((s) => s + delta);
 
-  if (lastCenterIndexRef.current !== index) {
+  if (lastStepRef.current !== step) {
     prevOffsetsRef.current = workingOffsetsRef.current;
     workingOffsetsRef.current = new Map();
-    lastCenterIndexRef.current = index;
+    lastStepRef.current = step;
   }
 
   const wrappedOffset = (i: number) => {
@@ -113,8 +123,8 @@ export default function EtcCategoryPage() {
 
   const handleDragEnd = (_event: unknown, info: PanInfo) => {
     const threshold = spacing / 3;
-    if (info.offset.x < -threshold) goTo(index + 1);
-    else if (info.offset.x > threshold) goTo(index - 1);
+    if (info.offset.x < -threshold) advance(1);
+    else if (info.offset.x > threshold) advance(-1);
   };
 
   // The radius the whole row curves around — tied to the plate's own size,
@@ -130,6 +140,11 @@ export default function EtcCategoryPage() {
   // home page carousel: everything else (spacing, sizing, opacity, scale) is
   // identical, just wrapped onto a curve instead of a straight line.
   const degFor = (linear: number) => (linear / attachRadius) * (180 / Math.PI);
+  // The wheel's own per-step rotation — degFor(offset*spacing) for any
+  // integer offset is just offset*degFor(spacing) (degFor is linear), so
+  // this is the same per-item angle as before, just factored out to also
+  // drive the wheel's rotation below.
+  const angleStepDeg = degFor(spacing);
   const neighborSize = itemSize * NEIGHBOR_SCALE;
   const arrowLinearOffset = spacing + neighborSize / 2 + gap + ARROW_SIZE / 2;
   const arrowDeg = degFor(arrowLinearOffset);
@@ -189,7 +204,7 @@ export default function EtcCategoryPage() {
               <>
                 <button
                   type="button"
-                  onClick={() => goTo(index - 1)}
+                  onClick={() => advance(-1)}
                   aria-label="Previous photo"
                   className={`absolute z-10 ${ARROW_BUTTON_CLASS}`}
                   style={{
@@ -202,7 +217,7 @@ export default function EtcCategoryPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => goTo(index + 1)}
+                  onClick={() => advance(1)}
                   aria-label="Next photo"
                   className={`absolute z-10 ${ARROW_BUTTON_CLASS}`}
                   style={{
@@ -224,8 +239,13 @@ export default function EtcCategoryPage() {
                 the top edge (a plain 100%-tall mask has zero coverage past
                 its own box). */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 cursor-grab touch-pan-y active:cursor-grabbing"
+              className="absolute left-1/2 -translate-x-1/2 cursor-grab touch-pan-y active:cursor-grabbing overflow-hidden"
               style={{
+                // The wheel inside rotates at rest whenever step !== 0 (see
+                // below) — its own untransformed box then sits at an angle,
+                // and without clipping here, its rotated corners bleed past
+                // this box and widen the page's own scrollable area even
+                // though every actual photo still lands well within it.
                 top: -topReach,
                 width: areaWidth,
                 height: topReach,
@@ -239,8 +259,21 @@ export default function EtcCategoryPage() {
                 maskRepeat: "no-repeat",
               }}
             >
+              {/* The wheel: a single rigid rotation (spring on `rotate`
+                  alone) is what makes the whole row move together like
+                  Carousel.tsx's belt, instead of every item separately
+                  re-targeting its own x/y along the curve (two independent
+                  linear springs tracing a straight-ish path between two
+                  points on a circle, which don't move in sync with each
+                  other the way a uniform rotation does). Pivots from
+                  bottom-center (originY:1), the hub point every item is
+                  already anchored to below, not the box's own center. */}
               <motion.div
                 className="absolute inset-0"
+                style={{ originX: 0.5, originY: 1 }}
+                initial={false}
+                animate={{ rotate: -step * angleStepDeg }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.6}
@@ -252,7 +285,15 @@ export default function EtcCategoryPage() {
                   const isCenter = dist === 0;
                   didJump(i, offset);
                   const epoch = jumpEpochRef.current.get(i) ?? 0;
-                  const slot = getArcSlot(degFor(offset * spacing), attachRadius);
+                  // itemStep stays numerically constant across an ordinary
+                  // single-step advance (offset moves opposite to step by
+                  // the same amount), so this item's own local slot doesn't
+                  // need to re-spring — the wheel's shared rotation above is
+                  // what actually carries it to its new on-screen spot. It
+                  // only jumps (handled by didJump/epoch above) at the one
+                  // photo whose shortest-path offset flips sides.
+                  const itemStep = step + offset;
+                  const slot = getArcSlot(itemStep * angleStepDeg, attachRadius);
                   const scale = isCenter ? CENTER_SCALE : dist === 1 ? NEIGHBOR_SCALE : FAR_SCALE;
                   const imageOpacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
                   const textOpacity = isCenter ? 1 : dist === 1 ? 0.5 : 0;
@@ -261,7 +302,7 @@ export default function EtcCategoryPage() {
                     <motion.button
                       type="button"
                       key={`${photo.src}-${epoch}`}
-                      onClick={() => (isCenter ? setSelectedIndex(i) : goTo(i))}
+                      onClick={() => (isCenter ? setSelectedIndex(i) : advance(offset))}
                       aria-label={isCenter ? `Open photo: ${photo.caption}` : `Show photo: ${photo.caption}`}
                       aria-hidden={dist > 1}
                       tabIndex={dist > 1 ? -1 : 0}
