@@ -115,8 +115,24 @@ export default function EtcCategoryPage() {
   }
 
   const wrappedOffset = (i: number) => {
-    let diff = (((i - index) % photoCount) + photoCount) % photoCount;
-    if (diff > photoCount / 2) diff -= photoCount;
+    const raw = (((i - index) % photoCount) + photoCount) % photoCount;
+    let diff: number;
+    if (raw > photoCount / 2) {
+      diff = raw - photoCount;
+    } else if (raw < photoCount / 2) {
+      diff = raw;
+    } else {
+      // Exact halfway tie (only possible when photoCount is even) — e.g. with
+      // 4 photos, the one diametrically opposite center is equally "left" or
+      // "right". Always picking the same side here (as this used to) makes
+      // one arrow direction discontinuous: a visible neighbor advancing past
+      // this point gets relabeled onto the *other* side mid-flight, which
+      // trips the jump-freeze fallback below and reads as a snap/slide-back.
+      // Continuing whichever way this photo was already heading keeps every
+      // step a uniform ±1 offset change, so both directions animate the same.
+      const prevOffset = prevOffsetsRef.current.get(i);
+      diff = prevOffset !== undefined && prevOffset < 0 ? raw - photoCount : raw;
+    }
     workingOffsetsRef.current.set(i, diff);
     return diff;
   };
