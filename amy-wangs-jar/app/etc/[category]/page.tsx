@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { notFound, useParams } from "next/navigation";
+import Link from "next/link";
+import { notFound, useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
 import { ARROW_SIZE, NEIGHBOR_SCALE, computeLayout, useViewportWidth } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
@@ -20,7 +21,7 @@ const FAR_SCALE = 0.55; // matches Carousel.tsx's own dist>=2 scale
 
 // The plate's diameter relative to itemSize (computeLayout's own uniform
 // item size — the same one the home page carousel uses).
-const PLATE_SCALE = 2.3;
+const PLATE_SCALE = 2.5;
 // Fraction of the plate's own diameter that hangs off the bottom edge,
 // clipped by its wrapper below. 0.67 leaves ~1/3 of the circle peeking above
 // the item row.
@@ -28,7 +29,7 @@ const BLEED_FRACTION = 0.67;
 // Fraction of itemSize left as breathing room between the item ring and the
 // plate's own rim — smaller than before so the plate's visible top sits
 // higher, closer under the photo row instead of leaving a big empty gap.
-const PLATE_ITEM_GAP_RATIO = 0.05;
+const PLATE_ITEM_GAP_RATIO = -0.12;
 
 // Position + rotation for a slot `offsetDeg` degrees around from center (0 =
 // dead center/top, positive = right, negative = left) at the given radius.
@@ -43,8 +44,14 @@ function getArcSlot(offsetDeg: number, radius: number) {
 }
 
 export default function EtcCategoryPage() {
+  const router = useRouter();
   const params = useParams<{ category: string }>();
   const category = ETC_CATEGORIES.find((c) => c.slug === params.category);
+  // Next.js unmounts this page the instant a Link navigation fires, with no
+  // chance to play an exit animation — so the back button instead flips this
+  // flag, lets the content fade+slide back down (the entrance in reverse),
+  // and only navigates once that animation actually finishes.
+  const [isExiting, setIsExiting] = useState(false);
   // Unwrapped step count (can grow past ±photoCount across many clicks) —
   // not the wrapped photo index. The whole row rotates by exactly one
   // angleStep per step change (see the wheel motion.div below), so this one
@@ -61,23 +68,22 @@ export default function EtcCategoryPage() {
   // distances get bent onto an arc below instead of laid out in a line.
   const { itemSize, imageSize, spacing, gap } = computeLayout(viewportWidth);
 
-  // See the equivalent comment in the previous version of this file: when
-  // photoCount is even, the photo exactly opposite center is equidistant
-  // both ways, so which side it resolves to flips from one render to the
-  // next — without this fix, whichever photo is mid-flip that render
-  // animates a full sweep across the arc instead of just popping (invisibly,
-  // since it's off the visible tier either way) to its new spot.
+  // When photoCount is even, the photo exactly opposite center can't split
+  // evenly between the two sides — the tie always resolves to the right, so
+  // every step forces exactly one photo to jump straight from "visible on
+  // the left" to "invisible on the right" (or back). Animating x/y for a
+  // jump like that directly would sweep the photo across the plate in a
+  // straight line instead of riding the arc, so jumps snap position instantly
+  // (see the per-item transition below) and let opacity carry the fade.
   const lastStepRef = useRef(-1);
   const prevOffsetsRef = useRef<Map<number, number>>(new Map());
   const workingOffsetsRef = useRef<Map<number, number>>(new Map());
-  const jumpEpochRef = useRef<Map<number, number>>(new Map());
 
   useEffect(() => {
     setStep(0);
     lastStepRef.current = -1;
     prevOffsetsRef.current = new Map();
     workingOffsetsRef.current = new Map();
-    jumpEpochRef.current = new Map();
   }, [category?.slug]);
 
   useEffect(() => {
@@ -115,14 +121,6 @@ export default function EtcCategoryPage() {
     return diff;
   };
 
-  const didJump = (i: number, offset: number) => {
-    const prev = prevOffsetsRef.current.get(i);
-    if (prev === undefined || Math.abs(offset - prev) <= 1) return false;
-    jumpEpochRef.current.set(i, (jumpEpochRef.current.get(i) ?? 0) + 1);
-    return true;
-  };
-
-
   // The radius the whole row curves around — tied to the plate's own size,
   // so items ride close around its rim.
   const plateSize = itemSize * PLATE_SCALE;
@@ -156,35 +154,63 @@ export default function EtcCategoryPage() {
   const selected = selectedIndex !== null ? photos[selectedIndex] : null;
 
   return (
-    <section className="mx-auto w-full max-w-[96rem] px-4 pb-36 pt-20 text-center">
-      <motion.h1
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="font-singsong text-[clamp(2rem,6vw,3.5rem)] leading-none text-[#2460A4]"
+    <section
+      className="relative mx-auto w-full max-w-[96rem] overflow-hidden px-4 pt-8 text-center"
+      style={{
+        // Caps this page to exactly one viewport below the sticky header
+        // (same --taskbar-height var Jar.js's hero reads) so the plate's
+        // bleed is hard-clipped at the fold instead of trailing off into a
+        // tall scroll of mostly-empty space — the footer then lands right
+        // at that cutoff instead of after a big gap.
+        height: "calc(100dvh - var(--taskbar-height, 4.375rem))",
+      }}
+    >
+      <Link
+        href="/etc"
+        aria-label="Back to What's on my plate"
+        className={`absolute left-4 top-8 z-20 ${ARROW_BUTTON_CLASS}`}
+        onClick={(e) => {
+          e.preventDefault();
+          setSelectedIndex(null);
+          setIsExiting(true);
+        }}
       >
-        {category.label}
-      </motion.h1>
+        <ArrowLeft size={20} strokeWidth={1.25} />
+      </Link>
 
-      {photoCount === 0 ? (
-        <div className="relative mx-auto mt-16" style={{ width: plateSize, height: plateRadius + plateVisibleBelowHub + 40 }}>
-          <div
-            className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
-            style={{ top: 0, width: plateSize, height: plateRadius + plateVisibleBelowHub }}
-          >
-            <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        // Exit continues the same upward direction the entrance arrived
+        // from (fading out on its way further up) instead of reversing back
+        // down to the entrance's own starting point.
+        animate={{ opacity: isExiting ? 0 : 1, y: isExiting ? -16 : 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        onAnimationComplete={() => {
+          if (isExiting) router.push("/etc");
+        }}
+      >
+        <h1 className="font-singsong text-[clamp(2rem,6vw,3.5rem)] leading-none text-[#2460A4]">
+          {category.label}
+        </h1>
+
+        {photoCount === 0 ? (
+          <div className="relative mx-auto mt-16" style={{ width: plateSize, height: plateRadius + plateVisibleBelowHub }}>
+            {/* Sits just above the plate rather than at the bottom of its (tall,
+                viewport-clipped) container — the plate's own lower portion may
+                get cut off at the fold, but this stays safely above that line. */}
+            <p className="absolute inset-x-0 -top-6 font-roboto text-sm text-gray-400">Coming soon.</p>
+            <div
+              className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
+              style={{ top: 0, width: plateSize, height: plateRadius + plateVisibleBelowHub }}
+            >
+              <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
+            </div>
           </div>
-          <p className="absolute inset-x-0 bottom-0 font-roboto text-sm text-gray-400">Coming soon.</p>
-        </div>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative mx-auto mt-16"
-          style={{ width: areaWidth, height: areaHeight }}
-        >
+        ) : (
+          <div
+            className="relative mx-auto mt-8"
+            style={{ width: areaWidth, height: areaHeight }}
+          >
           {/* Hub: the plate, both arrows, and the item track are all
               positioned relative to this single anchor point, the same way
               the previous arc version worked. */}
@@ -265,6 +291,17 @@ export default function EtcCategoryPage() {
                   bottom-center (originY:1), the hub point every item is
                   already anchored to below, not the box's own center. */}
               <motion.div
+                // Keyed so the one-time correction from the unmeasured
+                // (viewportWidth===0) default to the real viewport width
+                // remounts this fresh instead of animating a spring/tween
+                // between the two — exactly Carousel.tsx's own fix for the
+                // same issue (see its comment). Without the key, itemSize
+                // (and therefore attachRadius and every item's arc slot)
+                // jumps from the small SSR-default layout to the real one on
+                // an already-mounted tree, which Framer springs through
+                // instead of snapping to, reading as the whole fan expanding
+                // outward from the plate on first paint.
+                key={viewportWidth === 0 ? "measuring" : "ready"}
                 className="absolute inset-0"
                 style={{ originX: 0.5, originY: 1 }}
                 initial={false}
@@ -275,31 +312,47 @@ export default function EtcCategoryPage() {
                   const offset = wrappedOffset(i);
                   const dist = Math.abs(offset);
                   const isCenter = dist === 0;
-                  didJump(i, offset);
-                  const epoch = jumpEpochRef.current.get(i) ?? 0;
+                  const imageOpacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
+
                   // itemStep stays numerically constant across an ordinary
                   // single-step advance (offset moves opposite to step by
                   // the same amount), so this item's own local slot doesn't
                   // need to re-spring — the wheel's shared rotation above is
-                  // what actually carries it to its new on-screen spot. It
-                  // only jumps (handled by didJump/epoch above) at the one
-                  // photo whose shortest-path offset flips sides.
-                  const itemStep = step + offset;
+                  // what actually carries it to its new on-screen spot. Only
+                  // the one photo whose shortest-path offset flips sides
+                  // (see the comment above the refs) needs special handling.
+                  const prevOffset = prevOffsetsRef.current.get(i);
+                  const jumped = prevOffset !== undefined && Math.abs(offset - prevOffset) > 1;
+                  // A jump straight from the visible left slot into the
+                  // invisible right one would otherwise teleport to its new
+                  // (offscreen) spot and only then start fading — an instant
+                  // pop rather than a fade. Freezing position at the last
+                  // visible slot for just this transition lets it fade out
+                  // from where it was actually seen instead. The reverse
+                  // (appearing on the left) has no "last seen" spot to freeze
+                  // at, so it snaps straight to its real slot and fades in.
+                  const exiting = jumped && Math.abs(prevOffset!) <= 1 && dist >= 2;
+                  const posOffset = exiting ? prevOffset! : offset;
+                  const posDist = Math.abs(posOffset);
+                  const itemStep = step + posOffset;
                   const slot = getArcSlot(itemStep * angleStepDeg, attachRadius);
-                  const scale = isCenter ? CENTER_SCALE : dist === 1 ? NEIGHBOR_SCALE : FAR_SCALE;
-                  const imageOpacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
+                  const scale = posDist === 0 ? CENTER_SCALE : posDist === 1 ? NEIGHBOR_SCALE : FAR_SCALE;
 
                   return (
                     <motion.button
                       type="button"
-                      key={`${photo.src}-${epoch}`}
+                      key={photo.src}
                       onClick={isCenter ? () => setSelectedIndex(i) : undefined}
                       aria-label={isCenter ? `Open photo: ${photo.caption}` : undefined}
                       aria-hidden={!isCenter}
                       tabIndex={isCenter ? 0 : -1}
                       initial={false}
                       animate={{ x: slot.x, y: slot.y, rotate: slot.rotate, scale }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      transition={
+                        jumped
+                          ? { x: { duration: 0 }, y: { duration: 0 }, rotate: { duration: 0 }, scale: { duration: 0 } }
+                          : { type: "spring", stiffness: 300, damping: 30 }
+                      }
                       style={{
                         zIndex: 10 - dist,
                         pointerEvents: isCenter ? "auto" : "none",
@@ -329,8 +382,9 @@ export default function EtcCategoryPage() {
               </motion.div>
             </div>
           </div>
-        </motion.div>
-      )}
+        </div>
+        )}
+      </motion.div>
 
       <AnimatePresence>
         {selected && (
@@ -342,10 +396,10 @@ export default function EtcCategoryPage() {
             onClick={() => setSelectedIndex(null)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
               className="relative flex max-h-[85vh] w-[min(90vw,560px)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >

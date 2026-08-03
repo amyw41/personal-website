@@ -4,10 +4,11 @@ import { usePathname } from "next/navigation";
 import { pct } from "@/lib/frame";
 import { SOCIAL_LINKS } from "@/lib/social";
 
-// The category detail page ("What's on my plate?" > a category) runs its own
-// full-bleed layout with the plate cut off at the page edge — a footer right
-// after it would fight that composition, so it's the one route that opts out.
-const HIDE_FOOTER_PATTERN = /^\/etc\/[^/]+$/;
+// The category detail page ("What's on my plate?" > a category) clips its
+// plate right at the viewport fold (see app/etc/[category]/page.tsx's height
+// calc) so the footer starts exactly where the plate cuts off — the usual
+// pt-24 breathing room below would just reopen that gap as blank space.
+const NO_GAP_PATTERN = /^\/etc\/[^/]+$/;
 
 // Vertical offsets below stay literal since they're small positions inside
 // fixed-height bars, not values meant to stretch with width.
@@ -35,13 +36,14 @@ function MarqueeGroup() {
 
 export default function Footer() {
   const pathname = usePathname();
-  if (HIDE_FOOTER_PATTERN.test(pathname)) return null;
+  const noGap = NO_GAP_PATTERN.test(pathname);
 
   return (
     // pt-24 is the "space before Footer" rule — it lives here instead of as
     // padding-bottom on <main> so it's Footer's own responsibility regardless
-    // of which section happens to render last above it.
-    <footer className="mt-auto w-full pt-24">
+    // of which section happens to render last above it. Skipped on the one
+    // route that already ends flush against the fold (see NO_GAP_PATTERN).
+    <footer className={`mt-auto w-full ${noGap ? "" : "pt-24"}`}>
       <div className="relative h-[350px] w-full overflow-hidden bg-[#2460A4]">
         <div className="absolute inset-x-0 top-0 h-[70px]">
           <div
