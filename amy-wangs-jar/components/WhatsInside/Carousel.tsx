@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { motion, type PanInfo } from "framer-motion";
+import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { WHATS_INSIDE_ITEMS } from "@/lib/items";
 import { NEIGHBOR_SCALE, computeLayout, useViewportWidth } from "./layout";
@@ -32,12 +32,6 @@ export default function Carousel() {
     let diff = ((i - index) % ITEM_COUNT + ITEM_COUNT) % ITEM_COUNT;
     if (diff > ITEM_COUNT / 2) diff -= ITEM_COUNT;
     return diff;
-  };
-
-  const handleDragEnd = (_event: unknown, info: PanInfo) => {
-    const threshold = spacing / 3;
-    if (info.offset.x < -threshold) goTo(index + 1);
-    else if (info.offset.x > threshold) goTo(index - 1);
   };
 
   return (
@@ -78,26 +72,16 @@ export default function Carousel() {
               "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
           }}
         >
-          {/* Drag/swipe target: constrained to x:0 so it always springs back to
-              center on release — handleDragEnd reads the drag offset to decide
-              whether the release should advance the index instead. Keyed so
-              the one-time correction from the unmeasured (viewportWidth===0)
-              default to the real viewport width remounts this fresh instead
-              of animating a spring transition between the two — without the
-              key, Framer Motion sees that as a prop change on an
-              already-mounted tree and springs the items from clustered-near-
-              center out to their real positions, which read as an unwanted
-              "pop" on first paint. Later resizes (viewportWidth already
-              nonzero either way) don't remount, so they animate smoothly
-              instead of popping. */}
-          <motion.div
-            key={viewportWidth === 0 ? "measuring" : "ready"}
-            className="absolute inset-0 cursor-grab touch-pan-y active:cursor-grabbing"
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.6}
-            onDragEnd={handleDragEnd}
-          >
+          {/* Keyed so the one-time correction from the unmeasured
+              (viewportWidth===0) default to the real viewport width remounts
+              this fresh instead of animating a spring transition between the
+              two — without the key, Framer Motion sees that as a prop change
+              on an already-mounted tree and springs the items from
+              clustered-near-center out to their real positions, which read
+              as an unwanted "pop" on first paint. Later resizes
+              (viewportWidth already nonzero either way) don't remount, so
+              they animate smoothly instead of popping. */}
+          <motion.div key={viewportWidth === 0 ? "measuring" : "ready"} className="absolute inset-0">
             {WHATS_INSIDE_ITEMS.map((item, i) => {
               const offset = wrappedOffset(i);
               const dist = Math.abs(offset);
@@ -115,19 +99,14 @@ export default function Carousel() {
               const textOpacity = isCenter ? 1 : dist === 1 ? 0.5 : 0;
 
               return (
-                <motion.button
-                  type="button"
+                <motion.div
                   key={item.id}
-                  onClick={() => goTo(i)}
-                  aria-label={`Show ${item.name}`}
                   aria-hidden={dist > 1}
-                  tabIndex={dist > 1 ? -1 : 0}
                   initial={false}
                   animate={{ x: offset * spacing, scale }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   style={{
                     zIndex: 10 - dist,
-                    pointerEvents: dist > 1 ? "none" : "auto",
                     width: itemSize,
                     height: itemSize,
                     gap: itemSize * (16 / 360),
@@ -179,7 +158,7 @@ export default function Carousel() {
                   >
                     {item.description}
                   </motion.p>
-                </motion.button>
+                </motion.div>
               );
             })}
           </motion.div>

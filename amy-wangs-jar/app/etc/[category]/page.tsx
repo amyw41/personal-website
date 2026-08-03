@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { notFound, useParams } from "next/navigation";
 import Image from "next/image";
-import { AnimatePresence, motion, type PanInfo } from "framer-motion";
-import { ChevronLeft, ChevronRight, Star, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
 import { ARROW_SIZE, NEIGHBOR_SCALE, computeLayout, useViewportWidth } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
@@ -15,7 +15,7 @@ import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
 const ARROW_BUTTON_CLASS =
   "flex h-[2.25rem] w-[2.25rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
 
-const CENTER_SCALE = 1.3; // matches Carousel.tsx's own center-item scale-up
+const CENTER_SCALE = 1.1; // smaller than Carousel.tsx's own 1.3 — the featured photo here was reading too large
 const FAR_SCALE = 0.55; // matches Carousel.tsx's own dist>=2 scale
 
 // The plate's diameter relative to itemSize (computeLayout's own uniform
@@ -26,8 +26,9 @@ const PLATE_SCALE = 2.3;
 // the item row.
 const BLEED_FRACTION = 0.67;
 // Fraction of itemSize left as breathing room between the item ring and the
-// plate's own rim.
-const PLATE_ITEM_GAP_RATIO = 0.2;
+// plate's own rim — smaller than before so the plate's visible top sits
+// higher, closer under the photo row instead of leaving a big empty gap.
+const PLATE_ITEM_GAP_RATIO = 0.05;
 
 // Position + rotation for a slot `offsetDeg` degrees around from center (0 =
 // dead center/top, positive = right, negative = left) at the given radius.
@@ -121,11 +122,6 @@ export default function EtcCategoryPage() {
     return true;
   };
 
-  const handleDragEnd = (_event: unknown, info: PanInfo) => {
-    const threshold = spacing / 3;
-    if (info.offset.x < -threshold) advance(1);
-    else if (info.offset.x > threshold) advance(-1);
-  };
 
   // The radius the whole row curves around — tied to the plate's own size,
   // so items ride close around its rim.
@@ -239,7 +235,7 @@ export default function EtcCategoryPage() {
                 the top edge (a plain 100%-tall mask has zero coverage past
                 its own box). */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 cursor-grab touch-pan-y active:cursor-grabbing overflow-hidden"
+              className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
               style={{
                 // The wheel inside rotates at rest whenever step !== 0 (see
                 // below) — its own untransformed box then sits at an angle,
@@ -274,10 +270,6 @@ export default function EtcCategoryPage() {
                 initial={false}
                 animate={{ rotate: -step * angleStepDeg }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.6}
-                onDragEnd={handleDragEnd}
               >
                 {photos.map((photo, i) => {
                   const offset = wrappedOffset(i);
@@ -296,25 +288,23 @@ export default function EtcCategoryPage() {
                   const slot = getArcSlot(itemStep * angleStepDeg, attachRadius);
                   const scale = isCenter ? CENTER_SCALE : dist === 1 ? NEIGHBOR_SCALE : FAR_SCALE;
                   const imageOpacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
-                  const textOpacity = isCenter ? 1 : dist === 1 ? 0.5 : 0;
 
                   return (
                     <motion.button
                       type="button"
                       key={`${photo.src}-${epoch}`}
-                      onClick={() => (isCenter ? setSelectedIndex(i) : advance(offset))}
-                      aria-label={isCenter ? `Open photo: ${photo.caption}` : `Show photo: ${photo.caption}`}
-                      aria-hidden={dist > 1}
-                      tabIndex={dist > 1 ? -1 : 0}
+                      onClick={isCenter ? () => setSelectedIndex(i) : undefined}
+                      aria-label={isCenter ? `Open photo: ${photo.caption}` : undefined}
+                      aria-hidden={!isCenter}
+                      tabIndex={isCenter ? 0 : -1}
                       initial={false}
                       animate={{ x: slot.x, y: slot.y, rotate: slot.rotate, scale }}
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       style={{
                         zIndex: 10 - dist,
-                        pointerEvents: dist > 1 ? "none" : "auto",
+                        pointerEvents: isCenter ? "auto" : "none",
                         width: itemSize,
                         height: itemSize,
-                        gap: itemSize * (16 / 360),
                       }}
                       className="absolute left-1/2 top-full flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center"
                     >
@@ -332,21 +322,7 @@ export default function EtcCategoryPage() {
                           draggable={false}
                           className="pointer-events-none select-none object-contain"
                         />
-                        {isCenter && (
-                          <div className="absolute right-2 top-2 flex h-[1.875rem] w-[1.875rem] items-center justify-center rounded-full bg-[#2460A4] text-white">
-                            <Star size={15} strokeWidth={2.5} fill="currentColor" />
-                          </div>
-                        )}
                       </motion.div>
-
-                      <motion.p
-                        animate={{ opacity: textOpacity, scale: isCenter ? 0.75 : 1 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        style={{ maxWidth: itemSize * (270 / 360), fontSize: itemSize * (16 / 360) }}
-                        className="line-clamp-2 text-center font-roboto font-light text-gray-500"
-                      >
-                        {photo.caption}
-                      </motion.p>
                     </motion.button>
                   );
                 })}
