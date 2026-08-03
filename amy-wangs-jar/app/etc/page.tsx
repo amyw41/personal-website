@@ -14,12 +14,20 @@ import type { EtcCategorySlug } from "@/lib/etc";
 const SLIDE_UP_DURATION = 0.6;
 const STAGGER_STEP = 0.12;
 
+// Fixed desktop collage — a poster-style composition, not a responsive one.
+// The stage below is a literal 1277x1999px box that never grows or shrinks
+// with the viewport (see EtcPage: no scale factor anywhere, just
+// overflow-x-auto so a narrower window scrolls instead of squishing it).
+const STAGE_WIDTH = 1277;
+const STAGE_HEIGHT = 1999;
+const PLATE_SIZE = 280; // estimate — the mockup didn't give an exact measurement for the plate's own diameter
+
 type CollagePhoto = {
   src: string;
   caption: string;
-  x: number;
-  y: number;
-  width: number;
+  xPct: number; // left, as a % of STAGE_WIDTH
+  yPct: number; // top, as a % of STAGE_HEIGHT
+  width: number; // literal px, mockup-measured — matches the stage's own fixed coordinate space
   height: number;
   z: number;
 };
@@ -27,64 +35,62 @@ type CollagePhoto = {
 type CollageCategory = {
   slug: EtcCategorySlug;
   label: string;
-  plateX: number;
-  plateY: number;
+  plateXPct: number;
+  plateYPct: number;
   plateSize: number;
   photos: CollagePhoto[];
 };
 
-// Fixed desktop collage layout — every position/size below is a literal,
-// final pixel value (this is a poster-style composition, not a responsive
-// one: it renders identically at any window width, see STAGE_WIDTH/HEIGHT
-// and the overflow-x-auto wrapper below). These numbers aren't freehanded —
-// they're the resolved output of the previous anchor-point + compacting +
-// plate-attaching + viewport-scale pipeline, captured at scale 1 once that
-// pipeline's tuning (density, overlap, per-photo z/size overrides) was
-// finalized by eye across many iterations. Editing one photo now just means
-// changing that photo's own x/y/width/height/z here — nothing else to trace
-// through or recompute.
+// Every position/size below is mockup-measured, then run through two passes
+// by hand: each category's photos were pulled ~25% in toward their own
+// group's center (the raw mockup anchors read as separate floating photos,
+// not the dense overlapping stack the reference shows), and the whole
+// cluster was then shifted so its nearest photo bites ~75px into its
+// plate's edge (the raw anchors merely touch the plate, not overlap it).
+// These are the resolved numbers from that tuning — editing one photo now
+// just means changing its own field here directly, nothing to recompute.
 const GALLERY: CollageCategory[] = [
   {
     slug: "drawing",
     label: "Drawing",
-    plateX: 180,
-    plateY: 240,
-    plateSize: 280,
+    plateXPct: 14.1,
+    plateYPct: 9.7,
+    plateSize: PLATE_SIZE,
     photos: [
       {
         src: "/images/etc/drawing1.png",
         caption: "Graphite portrait on a cow-print background.",
-        x: 293.81,
-        y: 215.25,
-        width: 97.62,
-        height: 130,
+        xPct: 27.099,
+        yPct: 11.775,
+        width: 202,
+        height: 269,
         z: 1,
       },
       {
         src: "/images/etc/drawing2.png",
         caption: "Reference photo next to the finished sketch.",
-        x: 387.56,
-        y: 300,
-        width: 128.84,
-        height: 130,
+        xPct: 34.374,
+        yPct: 15.975,
+        width: 222,
+        height: 224,
         z: 2,
       },
       {
         src: "/images/etc/drawing3.png",
         caption: "Colored pencil self-portrait with a disposable camera.",
-        x: 435.56,
-        y: 180,
-        width: 128.11,
-        height: 130,
+        xPct: 38.199,
+        yPct: 7.975,
+        width: 203,
+        height: 206,
         z: 3,
       },
       {
         src: "/images/etc/drawing4.png",
         caption: "Digital portrait study in blue.",
-        x: 538.31,
-        y: 257.25,
-        width: 104.35,
-        height: 130,
+        xPct: 46.224,
+        yPct: 13.875,
+        width: 179,
+        height: 223,
         z: 4,
       },
     ],
@@ -92,87 +98,79 @@ const GALLERY: CollageCategory[] = [
   {
     slug: "nails",
     label: "Nails",
-    plateX: 970,
-    plateY: 664,
-    plateSize: 280,
+    plateXPct: 76.0,
+    plateYPct: 30.9,
+    plateSize: PLATE_SIZE,
     photos: [],
   },
   {
     slug: "dancing",
     label: "Dancing",
-    plateX: 180,
-    plateY: 1391,
-    plateSize: 280,
+    plateXPct: 14.1,
+    plateYPct: 67.2,
+    plateSize: PLATE_SIZE,
     photos: [
       {
         src: "/images/etc/dance1.png",
         caption: "Curtain call after a group recital.",
-        x: 331.86,
-        y: 1392.5,
-        width: 173.72,
-        height: 130,
+        xPct: 30.858,
+        yPct: 64.764,
+        width: 298,
+        height: 223,
         z: 1,
       },
       {
-        // Pushed behind everything as a deliberate background layer — its
-        // size is a bit smaller than the shared default so it holds its own
-        // on-screen footprint without dominating the layer stacked on top.
         src: "/images/etc/dance2.png",
         caption: "Chinese classical dance performance.",
-        x: 379.11,
-        y: 1488.5,
-        width: 168.25,
-        height: 126,
-        z: 0,
+        xPct: 34.533,
+        yPct: 71.439,
+        width: 223,
+        height: 167,
+        z: 2,
       },
       {
-        // Sent to the very back (below dance2) and enlarged since it's now
-        // the furthest-back layer.
         src: "/images/etc/dance3.png",
         caption: "Korean traditional hanbok dance.",
-        x: 524.61,
-        y: 1505,
-        width: 121.12,
-        height: 182,
-        z: -1,
+        xPct: 45.933,
+        yPct: 72.639,
+        width: 189,
+        height: 284,
+        z: 3,
       },
       {
         src: "/images/etc/dance4.png",
         caption: "Fan dance in blue stage light.",
-        x: 463.11,
-        y: 1319.75,
-        width: 195.34,
-        height: 130,
+        xPct: 41.133,
+        yPct: 61.164,
+        width: 290,
+        height: 193,
         z: 4,
       },
       {
         src: "/images/etc/dance5.png",
         caption: "Extension into an arabesque.",
-        x: 619.86,
-        y: 1418,
-        width: 195.39,
-        height: 130,
+        xPct: 53.358,
+        yPct: 66.039,
+        width: 248,
+        height: 165,
         z: 5,
       },
       {
-        // A narrow portrait crop sandwiched between wider landscape
-        // neighbors — bumped above everyone else in the stack so it doesn't
-        // get buried behind them.
         src: "/images/etc/dance6.png",
         caption: "Backstage at the Abstract Dance Challenge.",
-        x: 705.36,
-        y: 1277,
-        width: 97.78,
-        height: 130,
-        z: 9,
+        xPct: 62.108,
+        yPct: 56.989,
+        width: 176,
+        height: 234,
+        z: 6,
       },
       {
         src: "/images/etc/dance7.png",
         caption: "Fan in hand, between poses.",
-        x: 790.11,
-        y: 1409.75,
-        width: 195.45,
-        height: 130,
+        xPct: 69.708,
+        yPct: 65.664,
+        width: 218,
+        height: 145,
         z: 7,
       },
     ],
@@ -180,28 +178,12 @@ const GALLERY: CollageCategory[] = [
   {
     slug: "content",
     label: "Content",
-    plateX: 963,
-    plateY: 1866,
-    plateSize: 280,
+    plateXPct: 75.4,
+    plateYPct: 91.0,
+    plateSize: PLATE_SIZE,
     photos: [],
   },
 ];
-
-// Padding around the outermost plate/photo anchors so nothing clips at the
-// stage's own edge — covers a plate's own radius (140) plus a little
-// breathing room past the widest photo thumbnail.
-const STAGE_PADDING = 180;
-
-function computeStageSize(gallery: CollageCategory[]) {
-  const xs = gallery.flatMap((cat) => [cat.plateX, ...cat.photos.map((p) => p.x)]);
-  const ys = gallery.flatMap((cat) => [cat.plateY, ...cat.photos.map((p) => p.y)]);
-  return {
-    width: Math.max(...xs) - Math.min(...xs) + STAGE_PADDING * 2,
-    height: Math.max(...ys) - Math.min(...ys) + STAGE_PADDING * 2,
-  };
-}
-
-const { width: STAGE_WIDTH, height: STAGE_HEIGHT } = computeStageSize(GALLERY);
 
 export default function EtcPage() {
   return (
@@ -228,8 +210,8 @@ export default function EtcPage() {
                   aria-label={`View ${cat.label} photos`}
                   className="absolute"
                   style={{
-                    left: cat.plateX,
-                    top: cat.plateY,
+                    left: `${cat.plateXPct}%`,
+                    top: `${cat.plateYPct}%`,
                     transform: "translate(-50%, -50%)",
                   }}
                 >
@@ -250,8 +232,8 @@ export default function EtcPage() {
                     aria-label={`View ${cat.label} photos`}
                     className="absolute block"
                     style={{
-                      left: photo.x,
-                      top: photo.y,
+                      left: `${photo.xPct}%`,
+                      top: `${photo.yPct}%`,
                       width: photo.width,
                       height: photo.height,
                       transform: "translate(-50%, -50%)",
