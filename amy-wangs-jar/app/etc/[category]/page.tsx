@@ -1,56 +1,76 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { notFound, useParams } from "next/navigation";
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import { AnimatePresence, motion, type PanInfo } from "framer-motion";
+import { ChevronLeft, ChevronRight, Star, X } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
-import { useViewportWidth } from "@/components/WhatsInside/layout";
+import { ARROW_SIZE, NEIGHBOR_SCALE, computeLayout, useViewportWidth } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
 
-const REPEL_DEG = 7; // how far a neighbor shifts away from the hovered photo
-const MAX_ROTATE = 16; // deg, the outermost photos' tilt (fans in toward 0 at center)
-const HOVER_SCALE = 1.3;
-const PAGE_PADDING = 32; // matches this section's own px-4 on each side
+// Matches Carousel.tsx's own arrow styling exactly — fixed size (not scaled
+// to viewport the way the rest of this page used to be), same as the home
+// page carousel.
+const ARROW_BUTTON_CLASS =
+  "flex h-[2.25rem] w-[2.25rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
 
-// Desktop reference values — the old two fixed presets (a "base" and "sm"
-// tier) still left the base tier's own total width (radius*2+box = 434px)
-// wider than a 320-375px phone. Scaling every dimension by measured
-// available width / this reference's own total width guarantees the arc
-// never exceeds the viewport, at any width, instead of just at the two
-// sizes the presets happened to cover.
-const REFERENCE = { circle: 440, radius: 300, box: 140 };
-const REFERENCE_WIDTH = REFERENCE.radius * 2 + REFERENCE.box;
+const CENTER_SCALE = 1.3; // matches Carousel.tsx's own center-item scale-up
+const FAR_SCALE = 0.55; // matches Carousel.tsx's own dist>=2 scale
 
-// Plain helper, not a hook (no React state/effects) — safe to call after an
-// early return. Positions run along the top half of a circle: t=0 is 9
-// o'clock, t=0.5 is 12 o'clock, t=1 is 3 o'clock. When something else in the
-// arc is hovered, non-hovered photos get pushed further along the arc away
-// from it, with the push falling off by distance.
-function getArcPositions(count: number, hoveredIndex: number | null, radius: number) {
-  return Array.from({ length: count }, (_, i) => {
-    const t = count === 1 ? 0.5 : i / (count - 1);
-    let angleDeg = 180 - t * 180;
-    if (hoveredIndex !== null && i !== hoveredIndex) {
-      const diff = i - hoveredIndex;
-      angleDeg += (REPEL_DEG / Math.abs(diff)) * Math.sign(diff);
-    }
-    const angle = (angleDeg * Math.PI) / 180;
-    return {
-      x: Math.cos(angle) * radius,
-      y: -Math.sin(angle) * radius,
-      rotate: (t - 0.5) * MAX_ROTATE * 2,
-    };
-  });
+// The plate's diameter relative to itemSize (computeLayout's own uniform
+// item size — the same one the home page carousel uses).
+const PLATE_SCALE = 2.3;
+// Fraction of the plate's own diameter that hangs off the bottom edge,
+// clipped by its wrapper below. 0.67 leaves ~1/3 of the circle peeking above
+// the item row.
+const BLEED_FRACTION = 0.67;
+// Fraction of itemSize left as breathing room between the item ring and the
+// plate's own rim.
+const PLATE_ITEM_GAP_RATIO = 0.2;
+
+// Position + rotation for a slot `offsetDeg` degrees around from center (0 =
+// dead center/top, positive = right, negative = left) at the given radius.
+function getArcSlot(offsetDeg: number, radius: number) {
+  const angleDeg = 90 - offsetDeg;
+  const angle = (angleDeg * Math.PI) / 180;
+  return {
+    x: Math.cos(angle) * radius,
+    y: -Math.sin(angle) * radius,
+    rotate: offsetDeg,
+  };
 }
 
 export default function EtcCategoryPage() {
   const params = useParams<{ category: string }>();
   const category = ETC_CATEGORIES.find((c) => c.slug === params.category);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [index, setIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const viewportWidth = useViewportWidth();
+  // Exactly the home page carousel's own layout math — same item size,
+  // spacing, and gap formulas it uses. Nothing here is etc-specific; the
+  // only thing that differs from Carousel.tsx is that these linear
+  // distances get bent onto an arc below instead of laid out in a line.
+  const { itemSize, imageSize, spacing, gap } = computeLayout(viewportWidth);
+
+  // See the equivalent comment in the previous version of this file: when
+  // photoCount is even, the photo exactly opposite center is equidistant
+  // both ways, so which side it resolves to flips from one render to the
+  // next — without this fix, whichever photo is mid-flip that render
+  // animates a full sweep across the arc instead of just popping (invisibly,
+  // since it's off the visible tier either way) to its new spot.
+  const lastCenterIndexRef = useRef(-1);
+  const prevOffsetsRef = useRef<Map<number, number>>(new Map());
+  const workingOffsetsRef = useRef<Map<number, number>>(new Map());
+  const jumpEpochRef = useRef<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    setIndex(0);
+    lastCenterIndexRef.current = -1;
+    prevOffsetsRef.current = new Map();
+    workingOffsetsRef.current = new Map();
+    jumpEpochRef.current = new Map();
+  }, [category?.slug]);
 
   useEffect(() => {
     if (selectedIndex === null) return;
@@ -64,16 +84,68 @@ export default function EtcCategoryPage() {
   if (!category) notFound();
 
   const photos = ETC_PHOTOS[category.slug];
-  const available = Math.max(viewportWidth - PAGE_PADDING, 220);
-  const scale = viewportWidth === 0 ? 1 : Math.min(available / REFERENCE_WIDTH, 1);
-  const circle = REFERENCE.circle * scale;
-  const radius = REFERENCE.radius * scale;
-  const box = REFERENCE.box * scale;
-  const positions = getArcPositions(photos.length, hoveredIndex, radius);
+  const photoCount = photos.length;
+
+  const goTo = (i: number) => {
+    if (photoCount === 0) return;
+    setIndex(((i % photoCount) + photoCount) % photoCount);
+  };
+
+  if (lastCenterIndexRef.current !== index) {
+    prevOffsetsRef.current = workingOffsetsRef.current;
+    workingOffsetsRef.current = new Map();
+    lastCenterIndexRef.current = index;
+  }
+
+  const wrappedOffset = (i: number) => {
+    let diff = (((i - index) % photoCount) + photoCount) % photoCount;
+    if (diff > photoCount / 2) diff -= photoCount;
+    workingOffsetsRef.current.set(i, diff);
+    return diff;
+  };
+
+  const didJump = (i: number, offset: number) => {
+    const prev = prevOffsetsRef.current.get(i);
+    if (prev === undefined || Math.abs(offset - prev) <= 1) return false;
+    jumpEpochRef.current.set(i, (jumpEpochRef.current.get(i) ?? 0) + 1);
+    return true;
+  };
+
+  const handleDragEnd = (_event: unknown, info: PanInfo) => {
+    const threshold = spacing / 3;
+    if (info.offset.x < -threshold) goTo(index + 1);
+    else if (info.offset.x > threshold) goTo(index - 1);
+  };
+
+  // The radius the whole row curves around — tied to the plate's own size,
+  // so items ride close around its rim.
+  const plateSize = itemSize * PLATE_SCALE;
+  const plateRadius = plateSize / 2;
+  const attachRadius = plateRadius + itemSize * (0.5 + PLATE_ITEM_GAP_RATIO);
+  const plateVisibleBelowHub = Math.max(0, plateSize * (1 - BLEED_FRACTION));
+
+  // Converts a *linear* distance — exactly what Carousel.tsx would use for
+  // its flat `x: offset*spacing` — into the angle needed to cover that same
+  // arc-length at attachRadius. This is the one real difference from the
+  // home page carousel: everything else (spacing, sizing, opacity, scale) is
+  // identical, just wrapped onto a curve instead of a straight line.
+  const degFor = (linear: number) => (linear / attachRadius) * (180 / Math.PI);
+  const neighborSize = itemSize * NEIGHBOR_SCALE;
+  const arrowLinearOffset = spacing + neighborSize / 2 + gap + ARROW_SIZE / 2;
+  const arrowDeg = degFor(arrowLinearOffset);
+  const leftArrowSlot = getArcSlot(-arrowDeg, attachRadius);
+  const rightArrowSlot = getArcSlot(arrowDeg, attachRadius);
+
+  // Container sizing: wide/tall enough to hold the plate + the full curved
+  // row, arrows included, without clipping.
+  const topReach = attachRadius + (itemSize * CENTER_SCALE) / 2 + 12;
+  const areaHeight = topReach + plateVisibleBelowHub;
+  const areaWidth = Math.abs(rightArrowSlot.x) * 2 + ARROW_SIZE + 16;
+
   const selected = selectedIndex !== null ? photos[selectedIndex] : null;
 
   return (
-    <section className="relative mx-auto flex w-full max-w-5xl flex-col items-center px-4 pb-40 pt-16 text-center">
+    <section className="mx-auto w-full max-w-[96rem] px-4 pb-36 pt-20 text-center">
       <motion.h1
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
@@ -83,65 +155,165 @@ export default function EtcCategoryPage() {
         {category.label}
       </motion.h1>
 
-      <div className="relative mt-28" style={{ width: radius * 2 + box, height: radius + circle / 2 + box }}>
-        <PlateCircle
-          label={category.label}
-          size={circle}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-        />
-
-        {photos.map((photo, i) => {
-          const pos = positions[i];
-          const isHovered = hoveredIndex === i;
-          return (
-            <motion.button
-              type="button"
-              key={photo.src}
-              onMouseEnter={() => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              onFocus={() => setHoveredIndex(i)}
-              onBlur={() => setHoveredIndex(null)}
-              onClick={() => setSelectedIndex(i)}
-              aria-label={`Open photo: ${photo.caption}`}
-              className="absolute left-1/2 top-1/2"
-              style={{
-                width: box,
-                height: box,
-                x: pos.x - box / 2,
-                y: pos.y - box / 2,
-                rotate: pos.rotate,
-                zIndex: isHovered ? 30 : i,
-              }}
-              animate={{ scale: isHovered ? HOVER_SCALE : 1 }}
-              transition={{ type: "spring", stiffness: 260, damping: 24 }}
+      {photoCount === 0 ? (
+        <div className="relative mx-auto mt-16" style={{ width: plateSize, height: plateRadius + plateVisibleBelowHub + 40 }}>
+          <div
+            className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
+            style={{ top: 0, width: plateSize, height: plateRadius + plateVisibleBelowHub }}
+          >
+            <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
+          </div>
+          <p className="absolute inset-x-0 bottom-0 font-roboto text-sm text-gray-400">Coming soon.</p>
+        </div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative mx-auto mt-16"
+          style={{ width: areaWidth, height: areaHeight }}
+        >
+          {/* Hub: the plate, both arrows, and the item track are all
+              positioned relative to this single anchor point, the same way
+              the previous arc version worked. */}
+          <div className="absolute left-1/2" style={{ bottom: plateVisibleBelowHub }}>
+            <div
+              className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
+              style={{ top: -plateRadius, width: plateSize, height: plateRadius + plateVisibleBelowHub }}
             >
-              <div className="relative h-full w-full overflow-hidden rounded-sm shadow-lg">
-                <Image
-                  src={photo.src}
-                  alt={photo.caption}
-                  fill
-                  sizes={`${Math.round(box)}px`}
-                  className="object-cover transition-[filter] duration-300"
-                  style={{ filter: isHovered ? "grayscale(0) saturate(1.1)" : "grayscale(0.85) saturate(0.6)" }}
-                />
-              </div>
-              <AnimatePresence>
-                {isHovered && (
-                  <motion.span
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="pointer-events-none absolute left-1/2 top-full mt-2 w-36 -translate-x-1/2 whitespace-normal text-center font-roboto text-xs text-gray-600"
-                  >
-                    {photo.caption}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
-          );
-        })}
-      </div>
+              <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
+            </div>
+
+            {photoCount > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => goTo(index - 1)}
+                  aria-label="Previous photo"
+                  className={`absolute z-10 ${ARROW_BUTTON_CLASS}`}
+                  style={{
+                    left: leftArrowSlot.x,
+                    top: leftArrowSlot.y,
+                    transform: `translate(-50%, -50%) rotate(${leftArrowSlot.rotate}deg)`,
+                  }}
+                >
+                  <ChevronLeft size={23} strokeWidth={1.25} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goTo(index + 1)}
+                  aria-label="Next photo"
+                  className={`absolute z-10 ${ARROW_BUTTON_CLASS}`}
+                  style={{
+                    left: rightArrowSlot.x,
+                    top: rightArrowSlot.y,
+                    transform: `translate(-50%, -50%) rotate(${rightArrowSlot.rotate}deg)`,
+                  }}
+                >
+                  <ChevronRight size={23} strokeWidth={1.25} />
+                </button>
+              </>
+            )}
+
+            {/* Edge-faded exactly like Carousel.tsx (an alpha mask on the
+                items themselves, not an opaque overlay) — mask-size/-position
+                stretch that same left-right gradient to 3x this box's own
+                height, centered, so the center item's spring can briefly
+                overshoot past its resting scale without popping invisible at
+                the top edge (a plain 100%-tall mask has zero coverage past
+                its own box). */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 cursor-grab touch-pan-y active:cursor-grabbing"
+              style={{
+                top: -topReach,
+                width: areaWidth,
+                height: topReach,
+                WebkitMaskImage: "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
+                maskImage: "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
+                WebkitMaskSize: "100% 300%",
+                maskSize: "100% 300%",
+                WebkitMaskPosition: "center",
+                maskPosition: "center",
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+              }}
+            >
+              <motion.div
+                className="absolute inset-0"
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.6}
+                onDragEnd={handleDragEnd}
+              >
+                {photos.map((photo, i) => {
+                  const offset = wrappedOffset(i);
+                  const dist = Math.abs(offset);
+                  const isCenter = dist === 0;
+                  didJump(i, offset);
+                  const epoch = jumpEpochRef.current.get(i) ?? 0;
+                  const slot = getArcSlot(degFor(offset * spacing), attachRadius);
+                  const scale = isCenter ? CENTER_SCALE : dist === 1 ? NEIGHBOR_SCALE : FAR_SCALE;
+                  const imageOpacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
+                  const textOpacity = isCenter ? 1 : dist === 1 ? 0.5 : 0;
+
+                  return (
+                    <motion.button
+                      type="button"
+                      key={`${photo.src}-${epoch}`}
+                      onClick={() => (isCenter ? setSelectedIndex(i) : goTo(i))}
+                      aria-label={isCenter ? `Open photo: ${photo.caption}` : `Show photo: ${photo.caption}`}
+                      aria-hidden={dist > 1}
+                      tabIndex={dist > 1 ? -1 : 0}
+                      initial={false}
+                      animate={{ x: slot.x, y: slot.y, rotate: slot.rotate, scale }}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      style={{
+                        zIndex: 10 - dist,
+                        pointerEvents: dist > 1 ? "none" : "auto",
+                        width: itemSize,
+                        height: itemSize,
+                        gap: itemSize * (16 / 360),
+                      }}
+                      className="absolute left-1/2 top-full flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center"
+                    >
+                      <motion.div
+                        animate={{ opacity: imageOpacity }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="relative"
+                        style={{ width: imageSize, height: imageSize }}
+                      >
+                        <Image
+                          src={photo.src}
+                          alt={photo.caption}
+                          fill
+                          sizes="(min-width: 640px) 288px, 256px"
+                          draggable={false}
+                          className="pointer-events-none select-none object-contain"
+                        />
+                        {isCenter && (
+                          <div className="absolute right-2 top-2 flex h-[1.875rem] w-[1.875rem] items-center justify-center rounded-full bg-[#2460A4] text-white">
+                            <Star size={15} strokeWidth={2.5} fill="currentColor" />
+                          </div>
+                        )}
+                      </motion.div>
+
+                      <motion.p
+                        animate={{ opacity: textOpacity, scale: isCenter ? 0.75 : 1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        style={{ maxWidth: itemSize * (270 / 360), fontSize: itemSize * (16 / 360) }}
+                        className="line-clamp-2 text-center font-roboto font-light text-gray-500"
+                      >
+                        {photo.caption}
+                      </motion.p>
+                    </motion.button>
+                  );
+                })}
+              </motion.div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <AnimatePresence>
         {selected && (

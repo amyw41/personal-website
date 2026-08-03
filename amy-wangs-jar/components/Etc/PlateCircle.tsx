@@ -1,9 +1,9 @@
-// Outline "plate" circle used both small (overview grid) and large (detail
-// page, centered) — a double ring with evenly spaced rivet marks around the
-// rim, and the category name centered inside. Purely decorative/presentational
-// (no hooks), so it renders fine from either a Server or Client Component.
-const RIVET_COUNT = 10;
+import Image from "next/image";
 
+// "Plate" circle used both small (overview grid) and large (detail page,
+// centered) — a hand-drawn plate illustration with the category name
+// centered inside. Purely decorative/presentational aside from the image
+// itself, so it renders fine from either a Server or Client Component.
 export default function PlateCircle({
   label,
   size = 220,
@@ -13,29 +13,22 @@ export default function PlateCircle({
   size?: number;
   className?: string;
 }) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const outerR = size / 2 - 3;
-  const innerR = outerR - 5;
-  const rivetR = (outerR + innerR) / 2;
-
-  const rivets = Array.from({ length: RIVET_COUNT }, (_, i) => {
-    const angle = (i / RIVET_COUNT) * Math.PI * 2 - Math.PI / 2;
-    return { x: cx + Math.cos(angle) * rivetR, y: cy + Math.sin(angle) * rivetR };
-  });
-
   return (
     <div
-      className={`pointer-events-none flex items-center justify-center text-gray-600 ${className}`}
+      className={`pointer-events-none relative flex items-center justify-center text-gray-600 ${className}`}
       style={{ width: size, height: size }}
     >
-      <svg width={size} height={size} className="absolute" aria-hidden="true">
-        <circle cx={cx} cy={cy} r={outerR} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.5} />
-        <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.5} />
-        {rivets.map((r, i) => (
-          <circle key={i} cx={r.x} cy={r.y} r={2.5} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.5} />
-        ))}
-      </svg>
+      <Image
+        src="/images/drawings/plate-1.png"
+        alt=""
+        fill
+        sizes={`${Math.round(size)}px`}
+        // Rotated 180° — the source drawing's pen strokes don't fully close
+        // near the top (a visible gap in both rings, plus a stray tail
+        // mark), while the bottom is clean. Flipping it moves that gap to
+        // the bottom, which the detail page's bleed-clip crops away anyway.
+        className="rotate-180 object-contain"
+      />
       <span className="relative px-4 font-instrument" style={{ fontSize: size * 0.1 }}>
         {label}
       </span>
