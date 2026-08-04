@@ -99,9 +99,13 @@ export default function Carousel() {
               const textOpacity = isCenter ? 1 : dist === 1 ? 0.5 : 0;
 
               return (
-                <motion.div
+                <motion.button
+                  type="button"
                   key={item.id}
+                  onClick={() => goTo(i)}
+                  aria-label={`Go to ${item.name}`}
                   aria-hidden={dist > 1}
+                  tabIndex={dist > 1 ? -1 : 0}
                   initial={false}
                   animate={{ x: offset * spacing, scale }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -111,7 +115,7 @@ export default function Carousel() {
                     height: itemSize,
                     gap: itemSize * (16 / 360),
                   }}
-                  className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center"
+                  className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 select-none flex-col items-center justify-center cursor-pointer"
                 >
                   {/* Matches Gallery's image box exactly at desktop size (see
                       IMAGE_RATIO in layout.ts) so an item reads as the same
@@ -138,7 +142,9 @@ export default function Carousel() {
                     )}
                   </motion.div>
 
-                  <motion.p
+                  {/* span, not p — this now lives inside a <button>, and a
+                      <p> isn't valid phrasing content there. */}
+                  <motion.span
                     // `scale` here (a plain CSS transform, layered on top of the
                     // button's own scale) is what makes the centered item's text
                     // read a bit smaller than a flat 1.3x — unlike fontSize, a
@@ -154,11 +160,11 @@ export default function Carousel() {
                       maxWidth: itemSize * (270 / 360),
                       fontSize: itemSize * (16 / 360),
                     }}
-                    className="line-clamp-2 text-center font-roboto font-light text-gray-500"
+                    className="line-clamp-2 block text-center font-roboto font-light text-gray-500"
                   >
                     {item.description}
-                  </motion.p>
-                </motion.div>
+                  </motion.span>
+                </motion.button>
               );
             })}
           </motion.div>

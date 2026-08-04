@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import PlateCircle from "@/components/Etc/PlateCircle";
 import type { EtcCategorySlug } from "@/lib/etc";
@@ -10,17 +12,24 @@ import type { EtcCategorySlug } from "@/lib/etc";
 // heading, and again per-category (matching Carousel.tsx's own reveal) as
 // each plate scrolls into the viewport — before that category's photos
 // start their roll-out (below), so the two entrances read as sequential
-// instead of overlapping.
-const SLIDE_UP_DURATION = 0.6;
-const STAGGER_STEP = 0.12;
+// instead of overlapping. Kept short so scrolling down feels responsive
+// instead of laggy.
+const SLIDE_UP_DURATION = 0.35;
+const PHOTO_DURATION = 0.35;
+const STAGGER_STEP = 0.06;
+// How much of an element needs to be on-screen before its whileInView
+// entrance fires — lower than Carousel.tsx's own 0.3 so plates/photos start
+// animating as soon as they're barely in view, instead of waiting for a
+// third of them to have scrolled past the fold first.
+const VIEWPORT_AMOUNT = 0.1;
 
 // Fixed desktop collage — a poster-style composition, not a responsive one.
-// The stage below is a literal 1277x1999px box that never grows or shrinks
-// with the viewport (see EtcPage: no scale factor anywhere, just
-// overflow-x-auto so a narrower window scrolls instead of squishing it).
+// The stage below is a fixed-width box that never grows or shrinks with the
+// viewport (see EtcPage: no scale factor anywhere, just overflow-x-auto so
+// a narrower window scrolls instead of squishing it). Its height is
+// computed below from GALLERY itself, not hardcoded — see computeStageHeight.
 const STAGE_WIDTH = 1277;
-const STAGE_HEIGHT = 1999;
-const PLATE_SIZE = 280; // estimate — the mockup didn't give an exact measurement for the plate's own diameter
+const PLATE_SIZE = 480; // estimate — the mockup didn't give an exact measurement for the plate's own diameter
 
 type CollagePhoto = {
   src: string;
@@ -30,6 +39,7 @@ type CollagePhoto = {
   width: number; // literal px, mockup-measured — matches the stage's own fixed coordinate space
   height: number;
   z: number;
+  extraDelay?: number; // added on top of the usual rank-based stagger delay, for a photo that should noticeably lag behind the rest
 };
 
 type CollageCategory = {
@@ -60,8 +70,8 @@ const GALLERY: CollageCategory[] = [
       {
         src: "/images/etc/drawing1.png",
         caption: "Graphite portrait on a cow-print background.",
-        xPct: 27.099,
-        yPct: 11.775,
+        xPct: 30,
+        yPct: 10,
         width: 202,
         height: 269,
         z: 1,
@@ -69,8 +79,8 @@ const GALLERY: CollageCategory[] = [
       {
         src: "/images/etc/drawing2.png",
         caption: "Reference photo next to the finished sketch.",
-        xPct: 34.374,
-        yPct: 15.975,
+        xPct: 42,
+        yPct: 14,
         width: 222,
         height: 224,
         z: 2,
@@ -78,19 +88,19 @@ const GALLERY: CollageCategory[] = [
       {
         src: "/images/etc/drawing3.png",
         caption: "Colored pencil self-portrait with a disposable camera.",
-        xPct: 38.199,
-        yPct: 7.975,
-        width: 203,
-        height: 206,
+        xPct: 45,
+        yPct: 7,
+        width: 233,
+        height: 236,
         z: 3,
       },
       {
         src: "/images/etc/drawing4.png",
         caption: "Digital portrait study in blue.",
-        xPct: 46.224,
-        yPct: 13.875,
-        width: 179,
-        height: 223,
+        xPct: 57,
+        yPct: 11,
+        width: 209,
+        height: 253,
         z: 4,
       },
     ],
@@ -113,35 +123,35 @@ const GALLERY: CollageCategory[] = [
       {
         src: "/images/etc/dance1.png",
         caption: "Curtain call after a group recital.",
-        xPct: 30.858,
-        yPct: 64.764,
-        width: 298,
-        height: 223,
+        xPct: 33,
+        yPct: 65,
+        width: 288,
+        height: 213,
         z: 1,
       },
       {
         src: "/images/etc/dance2.png",
         caption: "Chinese classical dance performance.",
-        xPct: 34.533,
-        yPct: 71.439,
-        width: 223,
-        height: 167,
-        z: 2,
+        xPct: 36,
+        yPct: 71,
+        width: 253,
+        height: 180,
+        z: 5,
       },
       {
         src: "/images/etc/dance3.png",
         caption: "Korean traditional hanbok dance.",
-        xPct: 45.933,
-        yPct: 72.639,
-        width: 189,
-        height: 284,
+        xPct: 52.5,
+        yPct: 67.5,
+        width: 220,
+        height: 290,
         z: 3,
       },
       {
         src: "/images/etc/dance4.png",
         caption: "Fan dance in blue stage light.",
-        xPct: 41.133,
-        yPct: 61.164,
+        xPct: 50,
+        yPct: 61.5,
         width: 290,
         height: 193,
         z: 4,
@@ -149,28 +159,33 @@ const GALLERY: CollageCategory[] = [
       {
         src: "/images/etc/dance5.png",
         caption: "Extension into an arabesque.",
-        xPct: 53.358,
-        yPct: 66.039,
-        width: 248,
-        height: 165,
+        xPct: 66,
+        yPct: 63.5,
+        width: 280,
+        height: 185,
         z: 5,
       },
       {
+        // Sits highest up (lowest yPct) so it's normally first in the
+        // stagger — the extra delay below is what makes it noticeably lag
+        // behind everything else instead, a deliberate one-off exception to
+        // the usual top-to-bottom ordering.
         src: "/images/etc/dance6.png",
         caption: "Backstage at the Abstract Dance Challenge.",
-        xPct: 62.108,
-        yPct: 56.989,
-        width: 176,
-        height: 234,
-        z: 6,
+        xPct: 74,
+        yPct: 58,
+        width: 186,
+        height: 244,
+        z: 5,
+        extraDelay: 0.5,
       },
       {
         src: "/images/etc/dance7.png",
         caption: "Fan in hand, between poses.",
-        xPct: 69.708,
-        yPct: 65.664,
-        width: 218,
-        height: 145,
+        xPct: 86,
+        yPct: 63,
+        width: 238,
+        height: 159,
         z: 7,
       },
     ],
@@ -185,13 +200,85 @@ const GALLERY: CollageCategory[] = [
   },
 ];
 
+// Where a photo falls in its category's own top-to-bottom order (0 =
+// highest up), independent of the order it's listed in GALLERY.
+function topToBottomRank(photos: CollagePhoto[], target: CollagePhoto): number {
+  return [...photos].sort((a, b) => a.yPct - b.yPct).indexOf(target);
+}
+
+// Since every element is positioned by `top: yPct%`, a taller container
+// pushes every element further down for the *same* percentage — so the
+// container's own height can't just be guessed once and left alone; it has
+// to satisfy whichever element sits closest to the top or bottom edge for
+// its own size. This solves that directly: for a plate/photo centered at
+// yPct with the given pixel size, the smallest container height that keeps
+// it from clipping top or bottom is size/2 divided by the smaller of yPct
+// and (100 - yPct). Taking the max of that across everything in GALLERY
+// gives a height that always fits the content, however PLATE_SIZE or any
+// position changes later — no more re-guessing a literal number by hand.
+//
+// It also has to account for each element's own *unsettled* whileInView
+// state, not just its resting size: a plate/photo below the fold sits at
+// its `initial` transform offset (translated, not yet animated in) until
+// scrolled into view, and CSS counts that transformed position toward the
+// nearest scrollable ancestor's overflow — so on first load, before
+// anything below the fold has been scrolled to, those still-offset
+// elements stick out past a tightly-fit container and force a scrollbar
+// that then disappears element-by-element as each one settles into place.
+// PLATE_SLIDE_OFFSET/PHOTO_SLIDE_OFFSET below match the y values in each
+// motion.div's own `initial` prop, so the container is sized for their
+// worst-case (unsettled) extent, not just their resting one.
+const PLATE_SLIDE_OFFSET = 40; // matches the plate motion.div's initial y
+const PHOTO_SLIDE_OFFSET = 70; // matches the photo motion.div's initial y (upward, so it only affects the top edge)
+// Small flat safety margin on top of the precise calc below — covers the
+// page-level heading wrapper's own initial y:40 mount animation (which
+// isn't scroll-gated like the plate/photo ones above, so it briefly offsets
+// the whole stage on first paint regardless of scroll position) plus
+// general rounding.
+const STAGE_HEIGHT_PADDING = 48;
+
+function requiredStageHeight(yPct: number, size: number, topExtra: number, bottomExtra: number): number {
+  const half = size / 2;
+  const fraction = yPct / 100;
+  return Math.max((half + topExtra) / fraction, (half + bottomExtra) / (1 - fraction));
+}
+
+function computeStageHeight(gallery: CollageCategory[]): number {
+  let required = 0;
+  for (const cat of gallery) {
+    // Plate slides up from below (initial y:40) — only its bottom edge
+    // needs the extra room.
+    required = Math.max(required, requiredStageHeight(cat.plateYPct, cat.plateSize, 0, PLATE_SLIDE_OFFSET));
+    for (const photo of cat.photos) {
+      // Photo drops in from above (initial y:-70) — only its top edge
+      // needs the extra room.
+      required = Math.max(required, requiredStageHeight(photo.yPct, photo.height, PHOTO_SLIDE_OFFSET, 0));
+    }
+  }
+  return Math.ceil(required) + STAGE_HEIGHT_PADDING;
+}
+
+const STAGE_HEIGHT = computeStageHeight(GALLERY);
+
 export default function EtcPage() {
+  const router = useRouter();
+  // Next.js unmounts this page the instant a Link navigation fires, with no
+  // chance to play an exit animation — so clicking a plate instead flips
+  // this (storing which category it was headed to), lets the page
+  // fade+slide up (continuing the same upward direction the entrance
+  // arrived from) and only navigates once that animation actually
+  // finishes. Matches the category detail page's own back-button exit.
+  const [exitHref, setExitHref] = useState<string | null>(null);
+
   return (
     <section className="w-full px-4 pb-36 pt-20 text-center">
       <motion.div
         initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: SLIDE_UP_DURATION, ease: "easeOut" }}
+        animate={{ opacity: exitHref ? 0 : 1, y: exitHref ? -16 : 0 }}
+        transition={{ duration: exitHref ? 0.4 : SLIDE_UP_DURATION, ease: "easeOut" }}
+        onAnimationComplete={() => {
+          if (exitHref) router.push(exitHref);
+        }}
       >
         <h1 className="font-singsong text-[clamp(2rem,6vw,3.5rem)] leading-none text-[#2460A4]">
           What&apos;s on my plate?
@@ -214,23 +301,27 @@ export default function EtcPage() {
                     top: `${cat.plateYPct}%`,
                     transform: "translate(-50%, -50%)",
                   }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setExitHref(`/etc/${cat.slug}`);
+                  }}
                 >
                   <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.3 }}
+                    viewport={{ once: true, amount: VIEWPORT_AMOUNT }}
                     transition={{ duration: SLIDE_UP_DURATION, ease: "easeOut" }}
                   >
                     <PlateCircle label={cat.label} size={cat.plateSize} />
                   </motion.div>
                 </Link>
 
-                {cat.photos.map((photo, i) => (
-                  <Link
+                {cat.photos.map((photo) => (
+                  // Plain div, not a Link — only the plate itself should
+                  // navigate to /etc/{slug}; these photos are decorative.
+                  <div
                     key={photo.src}
-                    href={`/etc/${cat.slug}`}
-                    aria-label={`View ${cat.label} photos`}
-                    className="absolute block"
+                    className="pointer-events-none absolute block"
                     style={{
                       left: `${photo.xPct}%`,
                       top: `${photo.yPct}%`,
@@ -243,13 +334,22 @@ export default function EtcPage() {
                     <motion.div
                       initial={{ opacity: 0, y: -70 }}
                       whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: 0.4 }}
+                      viewport={{ once: true, amount: VIEWPORT_AMOUNT }}
                       transition={{
-                        duration: 0.6,
+                        duration: PHOTO_DURATION,
                         ease: "easeOut",
-                        delay: SLIDE_UP_DURATION + i * STAGGER_STEP,
+                        // Ranked by each photo's own yPct (not array order) so
+                        // whichever photo sits highest up the page rolls in
+                        // first, matching the order they actually appear as
+                        // you scroll down past the category — plus any
+                        // photo-specific extraDelay on top, for a one-off
+                        // exception like dance6 lagging behind the rest.
+                        delay:
+                          SLIDE_UP_DURATION +
+                          topToBottomRank(cat.photos, photo) * STAGGER_STEP +
+                          (photo.extraDelay ?? 0),
                       }}
-                      className="relative h-full w-full overflow-hidden rounded-sm shadow-md"
+                      className="relative h-full w-full overflow-hidden shadow-md"
                     >
                       <Image
                         src={photo.src}
@@ -259,7 +359,7 @@ export default function EtcPage() {
                         className="object-cover"
                       />
                     </motion.div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             ))}

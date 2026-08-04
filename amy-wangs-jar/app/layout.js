@@ -3,7 +3,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Taskbar from "@/components/Taskbar";
 import Footer from "@/components/Footer";
-import SocialColumn from "@/components/SocialColumn";
 
 const singsong = localFont({
   src: "../public/fonts/singsong/Singsong.otf",
@@ -45,7 +44,6 @@ export default function RootLayout({ children }) {
     >
       <body className="flex min-h-full flex-col font-roboto">
         <Taskbar />
-        <SocialColumn />
         <main className="flex-1">{children}</main>
         <Footer />
       </body>

@@ -20,8 +20,10 @@ export default function SocialColumn() {
       // percentage — left:pct(1433) scaled with viewport width, so anywhere
       // between the md breakpoint (768px) and ~919px it pushed this column
       // partly off the right edge of the screen instead of staying pinned a
-      // constant distance from it.
-      className="fixed z-40 hidden flex-col overflow-hidden rounded-[5px] border border-[#D9D9D9] bg-[#F2F2F2] md:flex"
+      // constant distance from it. Absolute (not fixed) so it scrolls away
+      // with the home page's own content instead of staying pinned to the
+      // viewport as the user scrolls down.
+      className="absolute z-40 hidden flex-col overflow-hidden rounded-[5px] border border-[#D9D9D9] bg-[#F2F2F2] md:flex"
       style={{ right: 79, top: 95 }}
     >
       {SOCIAL_LINKS.map((social, i) => (
