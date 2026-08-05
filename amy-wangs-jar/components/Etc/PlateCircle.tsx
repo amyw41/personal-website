@@ -22,6 +22,7 @@ export default function PlateCircle({
         src="/images/drawings/plate-1.png"
         alt=""
         fill
+        priority
         sizes={`${Math.round(size)}px`}
         // Rotated 180° — the source drawing's pen strokes don't fully close
         // near the top (a visible gap in both rings, plus a stray tail
