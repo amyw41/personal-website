@@ -31,7 +31,15 @@ export function computeLayout(viewportWidth: number, maxItemSize: number = MAX_I
   const denom = 1 + 2 * NEIGHBOR_SCALE + 4 * GAP_RATIO;
   const solvedItemSize = (available - 2 * ARROW_SIZE) / denom;
   const itemSize = Math.min(maxItemSize, Math.max(MIN_ITEM_SIZE, solvedItemSize));
+  return deriveLayout(itemSize);
+}
 
+// Every dimension computeLayout derives from a solved itemSize, factored out
+// so a caller that wants to skip the width-solve entirely (the plate page —
+// see its own comment on why it freezes itemSize at MAX_ITEM_SIZE and scales
+// the whole finished composition instead) can drive the exact same formulas
+// from a fixed itemSize instead of a re-solved one.
+export function deriveLayout(itemSize: number) {
   const gap = itemSize * GAP_RATIO;
   const imageSize = itemSize * IMAGE_RATIO;
   const neighborSize = itemSize * NEIGHBOR_SCALE;

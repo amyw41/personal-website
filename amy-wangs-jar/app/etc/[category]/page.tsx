@@ -7,7 +7,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
-import { ARROW_SIZE, NEIGHBOR_SCALE, computeLayout, useViewportWidth } from "@/components/WhatsInside/layout";
+import { ARROW_SIZE, MAX_ITEM_SIZE, NEIGHBOR_SCALE, deriveLayout, useElementSize } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
 
 // Matches Carousel.tsx's own arrow styling exactly — fixed size (not scaled
@@ -19,17 +19,33 @@ const ARROW_BUTTON_CLASS =
 const CENTER_SCALE = 1.1; // smaller than Carousel.tsx's own 1.3 — the featured photo here was reading too large
 const FAR_SCALE = 0.55; // matches Carousel.tsx's own dist>=2 scale
 
-// The plate's diameter relative to itemSize (computeLayout's own uniform
-// item size — the same one the home page carousel uses).
+// The plate's diameter relative to itemSize (deriveLayout's own uniform
+// item size — the same formulas the home page carousel uses, just driven
+// from a frozen design constant here instead of a re-solved viewport width).
 const PLATE_SCALE = 2.5;
-// Fraction of the plate's own diameter that hangs off the bottom edge,
-// clipped by its wrapper below. 0.67 leaves ~1/3 of the circle peeking above
-// the item row.
-const BLEED_FRACTION = 0.67;
+// How much of the plate image is actually visible, as a fraction of its own
+// diameter — entirely independent of the plate's radius. (The previous
+// BLEED_FRACTION formula pinned the crop window's top to the plate's own
+// center — "top: -plateRadius" — so it always showed at least half the
+// image no matter how it was tuned; the "thin sliver" look before was
+// actually the section's overflow-hidden accidentally chopping the rest off
+// on top of that, not this fraction doing its job. Now that the section
+// never needs to clip anything, this is what actually controls it — tune
+// this directly to get the sliver back.) The crop window always starts from
+// the image's own top edge (its clean edge post-rotation — see
+// PlateCircle's own comment), so this is "how far down from the top of the
+// image is visible," not a fraction measured from the plate's center.
+const PLATE_VISIBLE_RATIO = 0.15;
 // Fraction of itemSize left as breathing room between the item ring and the
 // plate's own rim — smaller than before so the plate's visible top sits
 // higher, closer under the photo row instead of leaving a big empty gap.
 const PLATE_ITEM_GAP_RATIO = -0.12;
+
+// Ceiling on how large the whole composition (scaled up from its fixed
+// design size — see the scale calc in the component below) is ever allowed
+// to render, so an ultrawide or very tall monitor doesn't blow it up to
+// something comically oversized just because the space is there.
+const MAX_SCALE = 1.5;
 
 // Position + rotation for a slot `offsetDeg` degrees around from center (0 =
 // dead center/top, positive = right, negative = left) at the given radius.
@@ -61,12 +77,21 @@ export default function EtcCategoryPage() {
   // photoCount, derived below once photoCount is known.
   const [step, setStep] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const viewportWidth = useViewportWidth();
-  // Exactly the home page carousel's own layout math — same item size,
-  // spacing, and gap formulas it uses. Nothing here is etc-specific; the
-  // only thing that differs from Carousel.tsx is that these linear
-  // distances get bent onto an arc below instead of laid out in a line.
-  const { itemSize, imageSize, spacing, gap } = computeLayout(viewportWidth);
+  // Frozen at the design constant, not re-solved per viewport. The whole
+  // composition — item spacing, arrow position, plate size, and the
+  // plate's own crop line — is designed once at this one fixed size, then
+  // scaled as a single unit to fit whatever space is actually available
+  // (see `scale` below). That's what keeps every one of those pieces in
+  // sync with every other one: nothing here can independently drift out of
+  // proportion with anything else the way separately-tuned per-viewport
+  // formulas (this page's old approach) eventually did.
+  const { itemSize, imageSize, spacing, gap } = deriveLayout(MAX_ITEM_SIZE);
+  // Measures the actual box this composition needs to fit into — the
+  // flex-1 area below the title (see the render below), not the raw
+  // viewport, so the header's height and the section's own padding are
+  // automatically netted out by ordinary CSS layout instead of a
+  // hand-subtracted pixel budget.
+  const [areaBoxRef, availableSize] = useElementSize<HTMLDivElement>();
 
   // When photoCount is even, the photo exactly opposite center can't split
   // evenly between the two sides — the tie always resolves to the right, so
@@ -142,7 +167,19 @@ export default function EtcCategoryPage() {
   const plateSize = itemSize * PLATE_SCALE;
   const plateRadius = plateSize / 2;
   const attachRadius = plateRadius + itemSize * (0.5 + PLATE_ITEM_GAP_RATIO);
-  const plateVisibleBelowHub = Math.max(0, plateSize * (1 - BLEED_FRACTION));
+  // See PLATE_VISIBLE_RATIO's own comment — the actual crop height, small and
+  // independent of plateRadius.
+  const plateVisibleHeight = plateSize * PLATE_VISIBLE_RATIO;
+  // The crop window's own top stays pinned plateRadius above the hub —
+  // unchanged from the very first working version of this page — so the
+  // visible sliver stays immediately adjacent to the photo ring exactly like
+  // it always did. Only its height shrank (above), so its bottom edge now
+  // usually lands *above* the hub, not below it — this is how far below the
+  // hub the composition's own lowest visible pixel actually sits, which is
+  // normally negative (nothing visible reaches down to the hub at all; the
+  // hub past that point is just an invisible math reference the photo ring
+  // is built from, not a pixel that needs to be included in the box).
+  const plateBottomBelowHub = plateVisibleHeight - plateRadius;
 
   // Converts a *linear* distance — exactly what Carousel.tsx would use for
   // its flat `x: offset*spacing` — into the angle needed to cover that same
@@ -164,27 +201,50 @@ export default function EtcCategoryPage() {
   // Container sizing: wide/tall enough to hold the plate + the full curved
   // row, arrows included, without clipping.
   const topReach = attachRadius + (itemSize * CENTER_SCALE) / 2 + 12;
-  const areaHeight = topReach + plateVisibleBelowHub;
+  // Usually less than topReach alone, now that plateBottomBelowHub is
+  // normally negative — the box only needs to reach down to whichever is
+  // actually lowest, the photo ring or the plate sliver, not both stacked.
+  const areaHeight = topReach + plateBottomBelowHub;
   const areaWidth = Math.abs(rightArrowSlot.x) * 2 + ARROW_SIZE + 16;
+
+  // The design box for whichever branch is about to render — the plate-only
+  // empty state is a different (smaller) natural box than the full
+  // photo+arrow arc, so the scale has to be solved against whichever one is
+  // actually on screen.
+  const designWidth = photoCount === 0 ? plateSize : areaWidth;
+  const designHeight = photoCount === 0 ? plateVisibleHeight : areaHeight;
+  // The one scale factor the whole composition renders at (applied as a
+  // single transform below) — the same technique used to fit an SVG/logo
+  // into any container. Deliberately no floor on the small end: letting it
+  // shrink to whatever actually fits is what makes "fits by construction" an
+  // absolute guarantee instead of a usual case with an escape hatch.
+  // availableSize starts at {0,0} before the very first client measurement,
+  // which would make this 0 — but useElementSize corrects that
+  // synchronously before the browser's first paint (see its own comment),
+  // so that never actually renders.
+  const scale =
+    availableSize.width > 0 && availableSize.height > 0
+      ? Math.min(availableSize.width / designWidth, availableSize.height / designHeight, MAX_SCALE)
+      : 0;
 
   const selected = selectedIndex !== null ? photos[selectedIndex] : null;
 
   return (
     <section
-      className="relative mx-auto w-full max-w-[96rem] overflow-hidden px-4 pt-8 text-center"
+      className="relative mx-auto flex w-full max-w-[96rem] flex-col overflow-hidden px-4 pt-3 text-center"
       style={{
         // Caps this page to exactly one viewport below the sticky header
-        // (same --taskbar-height var Jar.js's hero reads) so the plate's
-        // bleed is hard-clipped at the fold instead of trailing off into a
-        // tall scroll of mostly-empty space — the footer then lands right
-        // at that cutoff instead of after a big gap.
+        // (same --taskbar-height var Jar.js's hero reads). The composition
+        // below is scaled (see `scale` above) to fit whatever room that
+        // leaves, so nothing here needs to clip it at the fold anymore —
+        // this height is just the fixed budget `scale` fits inside of.
         height: "calc(100dvh - var(--taskbar-height, 4.375rem))",
       }}
     >
       <Link
         href="/etc"
         aria-label="Back to What's on my plate"
-        className={`absolute left-4 top-8 z-20 ${ARROW_BUTTON_CLASS}`}
+        className={`absolute left-4 top-3 z-20 ${ARROW_BUTTON_CLASS}`}
         onClick={(e) => {
           e.preventDefault();
           setSelectedIndex(null);
@@ -195,6 +255,7 @@ export default function EtcCategoryPage() {
       </Link>
 
       <motion.div
+        className="flex min-h-0 flex-1 flex-col"
         initial={{ opacity: 0, y: 40 }}
         // Exit continues the same upward direction the entrance arrived
         // from (fading out on its way further up) instead of reversing back
@@ -210,30 +271,67 @@ export default function EtcCategoryPage() {
         </h1>
 
         {photoCount === 0 ? (
-          <div className="relative mx-auto mt-16" style={{ width: plateSize, height: plateRadius + plateVisibleBelowHub }}>
-            {/* Sits just above the plate rather than at the bottom of its (tall,
-                viewport-clipped) container — the plate's own lower portion may
-                get cut off at the fold, but this stays safely above that line. */}
-            <p className="absolute inset-x-0 -top-6 font-roboto text-sm text-gray-400">Coming soon.</p>
+          // flex-1: fills whatever vertical room the title left in the
+          // section above — its own rendered size (measured by areaBoxRef)
+          // is exactly the "available space" `scale` above solves against,
+          // with header height and padding already netted out by ordinary
+          // CSS layout instead of a hand-subtracted pixel budget.
+          <div ref={areaBoxRef} className="relative mt-16 min-h-0 flex-1">
             <div
-              className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
-              style={{ top: 0, width: plateSize, height: plateRadius + plateVisibleBelowHub }}
+              className="absolute bottom-0 left-1/2"
+              style={{
+                width: plateSize,
+                height: plateVisibleHeight,
+                transform: `translateX(-50%) scale(${scale})`,
+                // Anchors the bottom-center point (where the plate sits) in
+                // place while the rest of the composition grows/shrinks
+                // around it, so scaling never shifts where it visually docks.
+                transformOrigin: "bottom center",
+              }}
             >
-              <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
+              {/* Sits just above the plate; scales down together with it
+                  since it lives inside the same scaled wrapper. */}
+              <p className="absolute inset-x-0 -top-6 font-roboto text-sm text-gray-400">Coming soon.</p>
+              <div
+                className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
+                style={{ top: 0, width: plateSize, height: plateVisibleHeight }}
+              >
+                <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
+              </div>
             </div>
           </div>
         ) : (
+          // Same flex-1-measures-available-space contract as the empty-state
+          // branch above.
+          <div ref={areaBoxRef} className="relative mt-8 min-h-0 flex-1">
           <div
-            className="relative mx-auto mt-8"
-            style={{ width: areaWidth, height: areaHeight }}
+            className="absolute bottom-0 left-1/2"
+            style={{
+              width: areaWidth,
+              height: areaHeight,
+              transform: `translateX(-50%) scale(${scale})`,
+              // Anchors the hub (bottom-center of this box) in place while
+              // the rest of the composition scales around it — this single
+              // transform is the only thing standing between the fixed
+              // design box above and whatever space is actually available;
+              // everything inside stays in the exact proportions it was
+              // designed at, no separate re-solving.
+              transformOrigin: "bottom center",
+            }}
           >
           {/* Hub: the plate, both arrows, and the item track are all
               positioned relative to this single anchor point, the same way
               the previous arc version worked. */}
-          <div className="absolute left-1/2" style={{ bottom: plateVisibleBelowHub }}>
+          <div className="absolute left-1/2" style={{ bottom: plateBottomBelowHub }}>
+            {/* top: -plateRadius, unchanged from the original working
+                version — keeps the crop window's top pinned right where the
+                photo ring actually is, so the visible sliver reads as
+                attached to the photos, not floating apart from them. Only
+                the height (plateVisibleHeight, small and independent of
+                plateRadius) changed — see PLATE_VISIBLE_RATIO's comment. */}
             <div
               className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
-              style={{ top: -plateRadius, width: plateSize, height: plateRadius + plateVisibleBelowHub }}
+              style={{ top: -plateRadius, width: plateSize, height: plateVisibleHeight }}
             >
               <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
             </div>
@@ -307,17 +405,13 @@ export default function EtcCategoryPage() {
                   bottom-center (originY:1), the hub point every item is
                   already anchored to below, not the box's own center. */}
               <motion.div
-                // Keyed so the one-time correction from the unmeasured
-                // (viewportWidth===0) default to the real viewport width
-                // remounts this fresh instead of animating a spring/tween
-                // between the two — exactly Carousel.tsx's own fix for the
-                // same issue (see its comment). Without the key, itemSize
-                // (and therefore attachRadius and every item's arc slot)
-                // jumps from the small SSR-default layout to the real one on
-                // an already-mounted tree, which Framer springs through
-                // instead of snapping to, reading as the whole fan expanding
-                // outward from the plate on first paint.
-                key={viewportWidth === 0 ? "measuring" : "ready"}
+                // No remount-on-measure key needed here (unlike the old
+                // viewport-width-solved layout, or Carousel.tsx's own):
+                // itemSize is now a frozen constant, identical on the server
+                // and every client render, so attachRadius and every item's
+                // arc slot never jump after mount — only `scale` (a plain
+                // style, not a Framer-animated value) changes once the
+                // available space is measured.
                 className="absolute inset-0"
                 style={{ originX: 0.5, originY: 1 }}
                 initial={false}
@@ -398,6 +492,7 @@ export default function EtcCategoryPage() {
               </motion.div>
             </div>
           </div>
+        </div>
         </div>
         )}
       </motion.div>
