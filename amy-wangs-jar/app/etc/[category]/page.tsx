@@ -7,7 +7,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
-import { ARROW_SIZE, MAX_ITEM_SIZE, NEIGHBOR_SCALE, deriveLayout, useElementSize } from "@/components/WhatsInside/layout";
+import { MAX_ITEM_SIZE, deriveLayout, useElementSize } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
 
 // Matches Carousel.tsx's own arrow styling exactly — fixed size (not scaled
@@ -15,14 +15,23 @@ import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
 // page carousel.
 const ARROW_BUTTON_CLASS =
   "flex h-[2.25rem] w-[2.25rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
+// The prev/next nav arrows on the photo ring itself — bigger than
+// ARROW_BUTTON_CLASS above (which stays as-is for the fixed back link), with
+// its own NAV_ARROW_SIZE used in place of a shared value for the arc's own
+// offset math below, so the ring actually makes room for the bigger buttons.
+// 50px = 1.4x the original 36px (2.25rem) shared arrow size.
+const NAV_ARROW_SIZE = 50;
+const NAV_ARROW_BUTTON_CLASS =
+  "flex h-[3.125rem] w-[3.125rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
 
 const CENTER_SCALE = 1.1; // smaller than Carousel.tsx's own 1.3 — the featured photo here was reading too large
 // How big the immediate left/right neighbor photos render, as a visual scale
 // applied on top of their own itemSize box — deliberately its own constant,
-// not the shared NEIGHBOR_SCALE imported above (that one still governs the
-// arc's spacing/arrow-offset math via neighborSize below, so bumping this
-// makes the neighbor photos themselves bigger without also widening the gaps
-// between items).
+// distinct from Carousel.tsx's shared NEIGHBOR_SCALE. The arc's own
+// spacing/arrow-offset math (see itemSpacing below) is re-derived from THIS
+// value rather than the shared one, so bumping it makes the neighbor photos
+// bigger *and* automatically widens the gaps between items to match, instead
+// of making them overlap.
 const PHOTO_NEIGHBOR_SCALE = 0.85;
 const FAR_SCALE = 0.7; // was 0.55 (Carousel.tsx's own dist>=2 scale) — bumped up along with the neighbor scale above
 
@@ -109,7 +118,7 @@ export default function EtcCategoryPage() {
   // sync with every other one: nothing here can independently drift out of
   // proportion with anything else the way separately-tuned per-viewport
   // formulas (this page's old approach) eventually did.
-  const { itemSize, imageSize, spacing, gap } = deriveLayout(MAX_ITEM_SIZE);
+  const { itemSize, imageSize, gap } = deriveLayout(MAX_ITEM_SIZE);
   // Measures the actual box this composition needs to fit into — the
   // flex-1 area below the title (see the render below), not the raw
   // viewport, so the header's height and the section's own padding are
@@ -209,13 +218,19 @@ export default function EtcCategoryPage() {
   // home page carousel: everything else (spacing, sizing, opacity, scale) is
   // identical, just wrapped onto a curve instead of a straight line.
   const degFor = (linear: number) => (linear / attachRadius) * (180 / Math.PI);
-  // The wheel's own per-step rotation — degFor(offset*spacing) for any
-  // integer offset is just offset*degFor(spacing) (degFor is linear), so
+  // deriveLayout's own `spacing` assumed neighbors render at the shared
+  // NEIGHBOR_SCALE (0.72) — this page renders them at its own, bigger
+  // PHOTO_NEIGHBOR_SCALE instead, so re-deriving spacing with the real
+  // rendered neighbor size here is what keeps items from overlapping now
+  // that they're bigger, without having to shrink them back down.
+  const neighborSize = itemSize * PHOTO_NEIGHBOR_SCALE;
+  const itemSpacing = itemSize / 2 + gap + neighborSize / 2;
+  // The wheel's own per-step rotation — degFor(offset*itemSpacing) for any
+  // integer offset is just offset*degFor(itemSpacing) (degFor is linear), so
   // this is the same per-item angle as before, just factored out to also
   // drive the wheel's rotation below.
-  const angleStepDeg = degFor(spacing);
-  const neighborSize = itemSize * NEIGHBOR_SCALE;
-  const arrowLinearOffset = spacing + neighborSize / 2 + gap + ARROW_SIZE / 2;
+  const angleStepDeg = degFor(itemSpacing);
+  const arrowLinearOffset = itemSpacing + neighborSize / 2 + gap + NAV_ARROW_SIZE / 2;
   const arrowDeg = degFor(arrowLinearOffset);
   const leftArrowSlot = getArcSlot(-arrowDeg, attachRadius);
   const rightArrowSlot = getArcSlot(arrowDeg, attachRadius);
@@ -227,7 +242,7 @@ export default function EtcCategoryPage() {
   // normally negative — the box only needs to reach down to whichever is
   // actually lowest, the photo ring or the plate sliver, not both stacked.
   const areaHeight = topReach + plateBottomBelowHub;
-  const areaWidth = Math.abs(rightArrowSlot.x) * 2 + ARROW_SIZE + 16;
+  const areaWidth = Math.abs(rightArrowSlot.x) * 2 + NAV_ARROW_SIZE + 16;
 
   // The design box for whichever branch is about to render — the plate-only
   // empty state is a different (smaller) natural box than the full
@@ -374,27 +389,27 @@ export default function EtcCategoryPage() {
                   type="button"
                   onClick={() => advance(-1)}
                   aria-label="Previous photo"
-                  className={`absolute z-10 ${ARROW_BUTTON_CLASS}`}
+                  className={`absolute z-10 ${NAV_ARROW_BUTTON_CLASS}`}
                   style={{
                     left: leftArrowSlot.x,
                     top: leftArrowSlot.y,
                     transform: `translate(-50%, -50%) rotate(${leftArrowSlot.rotate}deg)`,
                   }}
                 >
-                  <ChevronLeft size={23} strokeWidth={1.25} />
+                  <ChevronLeft size={32} strokeWidth={1.25} />
                 </button>
                 <button
                   type="button"
                   onClick={() => advance(1)}
                   aria-label="Next photo"
-                  className={`absolute z-10 ${ARROW_BUTTON_CLASS}`}
+                  className={`absolute z-10 ${NAV_ARROW_BUTTON_CLASS}`}
                   style={{
                     left: rightArrowSlot.x,
                     top: rightArrowSlot.y,
                     transform: `translate(-50%, -50%) rotate(${rightArrowSlot.rotate}deg)`,
                   }}
                 >
-                  <ChevronRight size={23} strokeWidth={1.25} />
+                  <ChevronRight size={32} strokeWidth={1.25} />
                 </button>
               </>
             )}
