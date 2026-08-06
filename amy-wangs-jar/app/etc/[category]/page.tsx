@@ -17,12 +17,31 @@ const ARROW_BUTTON_CLASS =
   "flex h-[2.25rem] w-[2.25rem] flex-shrink-0 items-center justify-center rounded-full border border-black/50 bg-white text-black/50 transition-colors hover:border-[#2460A4] hover:text-[#2460A4]";
 
 const CENTER_SCALE = 1.1; // smaller than Carousel.tsx's own 1.3 — the featured photo here was reading too large
-const FAR_SCALE = 0.55; // matches Carousel.tsx's own dist>=2 scale
+// How big the immediate left/right neighbor photos render, as a visual scale
+// applied on top of their own itemSize box — deliberately its own constant,
+// not the shared NEIGHBOR_SCALE imported above (that one still governs the
+// arc's spacing/arrow-offset math via neighborSize below, so bumping this
+// makes the neighbor photos themselves bigger without also widening the gaps
+// between items).
+const PHOTO_NEIGHBOR_SCALE = 0.85;
+const FAR_SCALE = 0.7; // was 0.55 (Carousel.tsx's own dist>=2 scale) — bumped up along with the neighbor scale above
 
+// Frozen at the plate's original scale — the item ring's own geometry
+// (attachRadius, topReach, and therefore the hub's on-screen position) is
+// still built from THIS value, not PLATE_SCALE below, so shrinking/growing
+// the plate's own rendered size never moves the item ring, arrows, or hub.
+// Without this split, attachRadius (and everything built from it) was
+// derived straight from the plate's own radius, so shrinking the plate also
+// shrank the ring's radius — pulling the whole photo row down/inward along
+// with it, not just the plate.
+const PLATE_GEOMETRY_SCALE = 2.5;
 // The plate's diameter relative to itemSize (deriveLayout's own uniform
 // item size — the same formulas the home page carousel uses, just driven
 // from a frozen design constant here instead of a re-solved viewport width).
-const PLATE_SCALE = 2.5;
+// Purely how big the plate PNG itself renders — independent of
+// PLATE_GEOMETRY_SCALE above, so this can be tuned freely without moving
+// anything else.
+const PLATE_SCALE = 2;
 // How much of the plate image is actually visible, as a fraction of its own
 // diameter — entirely independent of the plate's radius. (The previous
 // BLEED_FRACTION formula pinned the crop window's top to the plate's own
@@ -35,11 +54,17 @@ const PLATE_SCALE = 2.5;
 // the image's own top edge (its clean edge post-rotation — see
 // PlateCircle's own comment), so this is "how far down from the top of the
 // image is visible," not a fraction measured from the plate's center.
-const PLATE_VISIBLE_RATIO = 0.15;
+const PLATE_VISIBLE_RATIO = 0.35;
 // Fraction of itemSize left as breathing room between the item ring and the
 // plate's own rim — smaller than before so the plate's visible top sits
 // higher, closer under the photo row instead of leaving a big empty gap.
-const PLATE_ITEM_GAP_RATIO = -0.12;
+const PLATE_ITEM_GAP_RATIO = -0.4;
+// The actual "how curved" knob: a multiplier on attachRadius (below), the
+// radius of the circle every photo sits on. Bigger radius = the same
+// angular spread between items covers less vertical drop, so the left/right
+// photos sit higher (flatter curve, corners "lift"); smaller = more sag.
+// 1 = unchanged. Tune this single number up/down to taste.
+const CURVE_FLATTEN = 1.2;
 
 // Ceiling on how large the whole composition (scaled up from its fixed
 // design size — see the scale calc in the component below) is ever allowed
@@ -152,24 +177,31 @@ export default function EtcCategoryPage() {
     return diff;
   };
 
-  // The radius the whole row curves around — tied to the plate's own size,
-  // so items ride close around its rim.
+  // The radius the whole row curves around — tied to the plate's frozen
+  // geometry scale (not its own possibly-different rendered size, see
+  // PLATE_GEOMETRY_SCALE's own comment), so items ride close around where
+  // the plate's rim always was, regardless of how big the plate itself
+  // actually renders.
+  const plateGeometryRadius = (itemSize * PLATE_GEOMETRY_SCALE) / 2;
+  const attachRadius = (plateGeometryRadius + itemSize * (0.5 + PLATE_ITEM_GAP_RATIO)) * CURVE_FLATTEN;
+  // The plate's own actual rendered box — independent of plateGeometryRadius
+  // above, so this can shrink/grow without moving the item ring.
   const plateSize = itemSize * PLATE_SCALE;
-  const plateRadius = plateSize / 2;
-  const attachRadius = plateRadius + itemSize * (0.5 + PLATE_ITEM_GAP_RATIO);
   // See PLATE_VISIBLE_RATIO's own comment — the actual crop height, small and
-  // independent of plateRadius.
+  // independent of plateGeometryRadius.
   const plateVisibleHeight = plateSize * PLATE_VISIBLE_RATIO;
-  // The crop window's own top stays pinned plateRadius above the hub —
-  // unchanged from the very first working version of this page — so the
-  // visible sliver stays immediately adjacent to the photo ring exactly like
-  // it always did. Only its height shrank (above), so its bottom edge now
-  // usually lands *above* the hub, not below it — this is how far below the
-  // hub the composition's own lowest visible pixel actually sits, which is
-  // normally negative (nothing visible reaches down to the hub at all; the
-  // hub past that point is just an invisible math reference the photo ring
-  // is built from, not a pixel that needs to be included in the box).
-  const plateBottomBelowHub = plateVisibleHeight - plateRadius;
+  // The crop window's own top stays pinned plateGeometryRadius above the hub
+  // — unchanged from the very first working version of this page, and now
+  // independent of the plate's own rendered size too — so the visible sliver
+  // stays immediately adjacent to the photo ring exactly like it always did,
+  // and shrinking/growing the plate never moves that attach point, only the
+  // plate's own size around it. Its bottom edge (this value) usually lands
+  // *above* the hub, not below it — this is how far below the hub the
+  // composition's own lowest visible pixel actually sits, which is normally
+  // negative (nothing visible reaches down to the hub at all; the hub past
+  // that point is just an invisible math reference the photo ring is built
+  // from, not a pixel that needs to be included in the box).
+  const plateBottomBelowHub = plateVisibleHeight - plateGeometryRadius;
 
   // Converts a *linear* distance — exactly what Carousel.tsx would use for
   // its flat `x: offset*spacing` — into the angle needed to cover that same
@@ -232,7 +264,20 @@ export default function EtcCategoryPage() {
       <Link
         href="/etc"
         aria-label="Back to What's on my plate"
-        className={`absolute left-4 top-3 z-20 ${ARROW_BUTTON_CLASS}`}
+        // Matches Taskbar.js's own logo inset exactly at each breakpoint —
+        // px-4 (16px) below md, px-8 (32px) at md and up. `fixed`, not
+        // `absolute`, is what actually makes that line up on wide screens:
+        // this section is capped at max-w-[96rem] and centered, so past that
+        // width an `absolute left-N` here would measure from the section's
+        // own (now inset) edge, not the true viewport edge Taskbar's logo
+        // uses — drifting away from it the wider the screen gets. `fixed`
+        // positions relative to the viewport directly, same as the sticky
+        // header effectively is, so it's correct at any width. `top` is set
+        // via style (below) instead of a Tailwind class since it now needs
+        // to clear the header's real height (--taskbar-height), not just sit
+        // top-3 within this section.
+        className={`fixed left-4 z-20 md:left-8 ${ARROW_BUTTON_CLASS}`}
+        style={{ top: "calc(var(--taskbar-height, 4.375rem) + 0.75rem)" }}
         onClick={(e) => {
           e.preventDefault();
           setIsExiting(true);
@@ -265,7 +310,7 @@ export default function EtcCategoryPage() {
           // CSS layout instead of a hand-subtracted pixel budget.
           <div ref={areaBoxRef} className="relative mt-16 min-h-0 flex-1">
             <div
-              className="absolute bottom-0 left-1/2"
+              className="absolute -bottom-[15px] left-1/2"
               style={{
                 width: plateSize,
                 height: plateVisibleHeight,
@@ -292,7 +337,7 @@ export default function EtcCategoryPage() {
           // branch above.
           <div ref={areaBoxRef} className="relative mt-8 min-h-0 flex-1">
           <div
-            className="absolute bottom-0 left-1/2"
+            className="absolute -bottom-[15px] left-1/2"
             style={{
               width: areaWidth,
               height: areaHeight,
@@ -310,15 +355,15 @@ export default function EtcCategoryPage() {
               positioned relative to this single anchor point, the same way
               the previous arc version worked. */}
           <div className="absolute left-1/2" style={{ bottom: plateBottomBelowHub }}>
-            {/* top: -plateRadius, unchanged from the original working
-                version — keeps the crop window's top pinned right where the
-                photo ring actually is, so the visible sliver reads as
-                attached to the photos, not floating apart from them. Only
-                the height (plateVisibleHeight, small and independent of
-                plateRadius) changed — see PLATE_VISIBLE_RATIO's comment. */}
+            {/* top: -plateGeometryRadius (not the plate's own possibly
+                different plateRadius) — keeps the crop window's top pinned
+                right where the photo ring actually is, so the visible sliver
+                reads as attached to the photos, not floating apart from
+                them, and shrinking/growing the plate's own rendered size
+                never moves that attach point. */}
             <div
               className="absolute left-1/2 -translate-x-1/2 overflow-hidden"
-              style={{ top: -plateRadius, width: plateSize, height: plateVisibleHeight }}
+              style={{ top: -plateGeometryRadius, width: plateSize, height: plateVisibleHeight }}
             >
               <PlateCircle label="" size={plateSize} className="absolute left-0 top-0" />
             </div>
@@ -442,7 +487,7 @@ export default function EtcCategoryPage() {
                   const posOffset = exiting ? prevOffset! : offset;
                   const posDist = Math.abs(posOffset);
                   const itemStep = step + posOffset;
-                  const scale = posDist === 0 ? CENTER_SCALE : posDist === 1 ? NEIGHBOR_SCALE : FAR_SCALE;
+                  const scale = posDist === 0 ? CENTER_SCALE : posDist === 1 ? PHOTO_NEIGHBOR_SCALE : FAR_SCALE;
                   // scale (above) grows/shrinks each photo from its own
                   // center, so a bigger-scaled photo (the center one, 1.1x)
                   // pushes its bottom edge further from the hub than a
