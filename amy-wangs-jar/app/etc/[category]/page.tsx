@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notFound, useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
 import { MAX_ITEM_SIZE, deriveLayout, useElementSize } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
@@ -110,6 +110,10 @@ export default function EtcCategoryPage() {
   // independently. `index` (the actual centered photo) is just step mod
   // photoCount, derived below once photoCount is known.
   const [step, setStep] = useState(0);
+  // Which photo (by index into `photos`) is open in the lightbox, if any —
+  // only the centered photo is ever clickable into this (see `isCenter`
+  // below), not the neighbors.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   // Frozen at the design constant, not re-solved per viewport. The whole
   // composition — item spacing, arrow position, plate size, and the
   // plate's own crop line — is designed once at this one fixed size, then
@@ -139,10 +143,20 @@ export default function EtcCategoryPage() {
 
   useEffect(() => {
     setStep(0);
+    setSelectedIndex(null);
     lastStepRef.current = -1;
     prevOffsetsRef.current = new Map();
     workingOffsetsRef.current = new Map();
   }, [category?.slug]);
+
+  useEffect(() => {
+    if (selectedIndex === null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedIndex(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedIndex]);
 
   if (!category) notFound();
 
@@ -264,6 +278,8 @@ export default function EtcCategoryPage() {
       ? Math.min(availableSize.width / designWidth, availableSize.height / designHeight, MAX_SCALE)
       : 0;
 
+  const selected = selectedIndex !== null ? photos[selectedIndex] : null;
+
   return (
     <section
       className="relative mx-auto flex w-full max-w-[96rem] flex-col overflow-hidden px-4 pt-3 text-center"
@@ -295,6 +311,7 @@ export default function EtcCategoryPage() {
         style={{ top: "calc(var(--taskbar-height, 4.375rem) + 0.75rem)" }}
         onClick={(e) => {
           e.preventDefault();
+          setSelectedIndex(null);
           setIsExiting(true);
         }}
       >
@@ -524,10 +541,12 @@ export default function EtcCategoryPage() {
                     <motion.button
                       type="button"
                       key={photo.src}
-                      onClick={clickable ? () => advance(offset) : undefined}
-                      aria-label={clickable ? `Center photo: ${photo.caption}` : undefined}
+                      onClick={isCenter ? () => setSelectedIndex(i) : clickable ? () => advance(offset) : undefined}
+                      aria-label={
+                        isCenter ? `Open photo: ${photo.caption}` : clickable ? `Center photo: ${photo.caption}` : undefined
+                      }
                       aria-hidden={!isCenter && !clickable}
-                      tabIndex={clickable ? 0 : -1}
+                      tabIndex={isCenter || clickable ? 0 : -1}
                       initial={false}
                       animate={{ x: slot.x, y: slot.y, rotate: slot.rotate, scale }}
                       transition={
@@ -537,8 +556,8 @@ export default function EtcCategoryPage() {
                       }
                       style={{
                         zIndex: 10 - dist,
-                        pointerEvents: clickable ? "auto" : "none",
-                        cursor: clickable ? "pointer" : undefined,
+                        pointerEvents: isCenter || clickable ? "auto" : "none",
+                        cursor: isCenter || clickable ? "pointer" : undefined,
                         width: itemSize,
                         height: itemSize,
                       }}
@@ -569,6 +588,43 @@ export default function EtcCategoryPage() {
         </div>
         )}
       </motion.div>
+
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-6"
+            onClick={() => setSelectedIndex(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              // 1.4x the original size (560px/60vh/85vh) — 784px/84vh, capped
+              // at 95vh (not the literal 119vh that'd fall out of the same
+              // multiplication) so the card still fits on screen.
+              className="relative flex max-h-[95vh] w-[min(90vw,784px)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedIndex(null)}
+                aria-label="Close"
+                className={`absolute right-3 top-3 z-10 ${ARROW_BUTTON_CLASS}`}
+              >
+                <X size={20} strokeWidth={1.25} />
+              </button>
+              <div className="relative h-[84vh] w-full">
+                <Image src={selected.src} alt={selected.caption} fill className="object-contain" sizes="784px" />
+              </div>
+              <p className="px-6 py-4 font-roboto text-sm text-gray-600">{selected.caption}</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

@@ -16,7 +16,7 @@ import type { EtcCategorySlug } from "@/lib/etc";
 // instead of laggy.
 const SLIDE_UP_DURATION = 0.35;
 const PHOTO_DURATION = 0.35;
-const STAGGER_STEP = 0.06;
+const STAGGER_STEP = 0.03;
 // How much of an element needs to be on-screen before its whileInView
 // entrance fires — lower than Carousel.tsx's own 0.3 so plates/photos start
 // animating as soon as they're barely in view, instead of waiting for a
@@ -69,7 +69,7 @@ const GALLERY: CollageCategory[] = [
     photos: [
       {
         src: "/images/etc/drawing1.png",
-        caption: "Graphite portrait on a cow-print background.",
+        caption: "Niu Zaizai - 2023.",
         xPct: 30,
         yPct: 10,
         width: 202,
@@ -78,7 +78,7 @@ const GALLERY: CollageCategory[] = [
       },
       {
         src: "/images/etc/drawing2.png",
-        caption: "Reference photo next to the finished sketch.",
+        caption: "Jo Yuri (Squid Games) - 2025.",
         xPct: 42,
         yPct: 14,
         width: 222,
@@ -87,7 +87,7 @@ const GALLERY: CollageCategory[] = [
       },
       {
         src: "/images/etc/drawing3.png",
-        caption: "Colored pencil self-portrait with a disposable camera.",
+        caption: "Cha Woongki (AHOF) - 2023.",
         xPct: 45,
         yPct: 7,
         width: 233,
@@ -96,7 +96,7 @@ const GALLERY: CollageCategory[] = [
       },
       {
         src: "/images/etc/drawing4.png",
-        caption: "Digital portrait study in blue.",
+        caption: "Chihen (WIP, AHOF) - 2026).",
         xPct: 57,
         yPct: 11,
         width: 209,
@@ -166,10 +166,6 @@ const GALLERY: CollageCategory[] = [
         z: 5,
       },
       {
-        // Sits highest up (lowest yPct) so it's normally first in the
-        // stagger — the extra delay below is what makes it noticeably lag
-        // behind everything else instead, a deliberate one-off exception to
-        // the usual top-to-bottom ordering.
         src: "/images/etc/dance6.png",
         caption: "Backstage at the Abstract Dance Challenge.",
         xPct: 74,
@@ -177,7 +173,6 @@ const GALLERY: CollageCategory[] = [
         width: 186,
         height: 244,
         z: 5,
-        extraDelay: 0.5,
       },
       {
         src: "/images/etc/dance7.png",
@@ -269,6 +264,19 @@ export default function EtcPage() {
   // arrived from) and only navigates once that animation actually
   // finishes. Matches the category detail page's own back-button exit.
   const [exitHref, setExitHref] = useState<string | null>(null);
+  // Which categories' plates have entered the viewport — the single shared
+  // trigger every one of that category's photos keys off (see the photo
+  // motion.div below). Each photo used to carry its own whileInView, which
+  // fires the moment *that photo* individually crosses the viewport
+  // threshold — for a category's higher-up photos that happens within a
+  // few pixels of each other, so their rank-based delays read as intended,
+  // but a photo further down the cluster crosses the threshold later (more
+  // real scroll time has passed) and then gets the same fixed delay
+  // stacked on top of that late start, breaking the steady cadence for
+  // everything after the first couple. Anchoring all of a category's
+  // photos to one shared moment (the plate's own entry) instead keeps the
+  // stagger uniform regardless of how spread out the photos are on screen.
+  const [revealedCats, setRevealedCats] = useState<Set<EtcCategorySlug>>(new Set());
 
   return (
     <section className="w-full px-4 pb-36 pt-20 text-center">
@@ -310,6 +318,9 @@ export default function EtcPage() {
                     initial={{ opacity: 0, y: 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: VIEWPORT_AMOUNT }}
+                    onViewportEnter={() =>
+                      setRevealedCats((prev) => (prev.has(cat.slug) ? prev : new Set(prev).add(cat.slug)))
+                    }
                     transition={{ duration: SLIDE_UP_DURATION, ease: "easeOut" }}
                   >
                     <PlateCircle label={cat.label} size={cat.plateSize} />
@@ -333,8 +344,7 @@ export default function EtcPage() {
                   >
                     <motion.div
                       initial={{ opacity: 0, y: -70 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: VIEWPORT_AMOUNT }}
+                      animate={revealedCats.has(cat.slug) ? { opacity: 1, y: 0 } : undefined}
                       transition={{
                         duration: PHOTO_DURATION,
                         ease: "easeOut",
@@ -342,8 +352,8 @@ export default function EtcPage() {
                         // whichever photo sits highest up the page rolls in
                         // first, matching the order they actually appear as
                         // you scroll down past the category — plus any
-                        // photo-specific extraDelay on top, for a one-off
-                        // exception like dance6 lagging behind the rest.
+                        // photo-specific extraDelay on top, for a future
+                        // one-off exception that should lag behind the rest.
                         delay:
                           SLIDE_UP_DURATION +
                           topToBottomRank(cat.photos, photo) * STAGGER_STEP +

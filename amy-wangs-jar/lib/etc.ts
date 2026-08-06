@@ -23,10 +23,10 @@ export const ETC_CATEGORIES: EtcCategoryInfo[] = [
 // each photo. Nails/Content are empty until there are photos to add.
 export const ETC_PHOTOS: Record<EtcCategorySlug, EtcPhoto[]> = {
   drawing: [
-    { src: "/images/etc/drawing1.png", caption: "Graphite portrait on a cow-print background.", width: 808, height: 1076 },
-    { src: "/images/etc/drawing2.png", caption: "Reference photo next to the finished sketch.", width: 888, height: 896 },
-    { src: "/images/etc/drawing3.png", caption: "Colored pencil self-portrait with a disposable camera.", width: 812, height: 824 },
-    { src: "/images/etc/drawing4.png", caption: "Digital portrait study in blue.", width: 716, height: 892 },
+    { src: "/images/etc/drawing1.png", caption: "Niu Zaizai - 2023.", width: 808, height: 1076 },
+    { src: "/images/etc/drawing2.png", caption: "Jo Yuri (Squid Games) - 2025.", width: 888, height: 896 },
+    { src: "/images/etc/drawing3.png", caption: "Cha Woongki (AHOF) - 2023.", width: 812, height: 824 },
+    { src: "/images/etc/drawing4.png", caption: "Chihen (WIP, AHOF) - 2026.", width: 716, height: 892 },
   ],
   nails: [],
   dancing: [
