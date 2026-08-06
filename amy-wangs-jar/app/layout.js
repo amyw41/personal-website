@@ -41,6 +41,7 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       className={`${singsong.variable} ${instrumentSerif.variable} ${instrumentSans.variable} ${roboto.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col font-roboto">
         <Taskbar />

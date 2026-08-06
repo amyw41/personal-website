@@ -128,10 +128,25 @@ export default function Carousel({
               const textOpacity = isCenter ? 1 : dist === 1 ? 0.5 : 0;
 
               return (
-                <motion.button
-                  type="button"
+                // div with role="button", not an actual <button> — this item
+                // wraps the StarBadge (also a real <button>) when centered,
+                // and HTML doesn't allow a <button> inside a <button> (React
+                // will still mount it, but hydration fails since the browser
+                // itself splits the nested <button> out during initial HTML
+                // parsing, producing a different tree than React rendered).
+                // role="button" + onClick + onKeyDown reproduces native
+                // button semantics (click + Enter/Space activation, tab
+                // stop) without that restriction.
+                <motion.div
+                  role="button"
                   key={item.id}
                   onClick={() => goTo(i)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      goTo(i);
+                    }
+                  }}
                   aria-label={`Go to ${item.name}`}
                   aria-hidden={dist > 1}
                   tabIndex={dist > 1 ? -1 : 0}
@@ -190,8 +205,8 @@ export default function Carousel({
                     </div>
                   )}
 
-                  {/* span, not p — this now lives inside a <button>, and a
-                      <p> isn't valid phrasing content there. */}
+                  {/* span, not p — kept as inline phrasing content to match
+                      the StarBadge/image siblings above. */}
                   <motion.span
                     // `scale` here (a plain CSS transform, layered on top of the
                     // button's own scale) is what makes the centered item's text
@@ -212,7 +227,7 @@ export default function Carousel({
                   >
                     {item.description}
                   </motion.span>
-                </motion.button>
+                </motion.div>
               );
             })}
           </motion.div>

@@ -603,10 +603,15 @@ export default function EtcCategoryPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              // 1.4x the original size (560px/60vh/85vh) — 784px/84vh, capped
-              // at 95vh (not the literal 119vh that'd fall out of the same
-              // multiplication) so the card still fits on screen.
-              className="relative flex max-h-[95vh] w-[min(90vw,784px)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+              // w-fit, not a fixed 784px — the card shrink-wraps to whatever
+              // the image itself renders at (capped by max-w-[90vw] so an
+              // unusually wide photo still fits the viewport). Padding is
+              // p-14 (56px), not p-6 — the close button sits 12px inset at
+              // its own 36px size, reaching 48px in from the corner, so
+              // anything less than that would put it on top of the image
+              // instead of the white margin around it; p-14 clears that with
+              // a little room to spare, still equal on all four sides.
+              className="relative flex max-h-[95vh] w-fit max-w-[90vw] flex-col items-center justify-center overflow-hidden rounded-lg bg-white p-14 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -617,10 +622,26 @@ export default function EtcCategoryPage() {
               >
                 <X size={20} strokeWidth={1.25} />
               </button>
-              <div className="relative h-[84vh] w-full">
-                <Image src={selected.src} alt={selected.caption} fill className="object-contain" sizes="784px" />
+              {/* w-fit shrink-wraps this wrapper to its widest child (always
+                  the image, never the short caption below it), and the
+                  parent's items-center (above) centers that shrink-wrapped
+                  block as a whole in the card. items-start here then pins
+                  both children to the wrapper's own left edge — which is
+                  the image's actual left edge, since the wrapper is exactly
+                  as wide as the image — so the caption lines up under it
+                  without needing to know the image's rendered size directly. */}
+              <div className="flex w-fit max-w-full flex-col items-start">
+                <Image
+                  src={selected.src}
+                  alt={selected.caption}
+                  width={selected.width}
+                  height={selected.height}
+                  className="h-auto w-auto"
+                  style={{ maxHeight: "70vh", maxWidth: "100%" }}
+                  sizes="700px"
+                />
+                <p className="mt-2 text-left font-roboto text-xs text-gray-500">{selected.caption}</p>
               </div>
-              <p className="px-6 py-4 font-roboto text-sm text-gray-600">{selected.caption}</p>
             </motion.div>
           </motion.div>
         )}
