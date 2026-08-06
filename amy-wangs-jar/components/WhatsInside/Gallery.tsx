@@ -25,7 +25,7 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.5, ease: "easeOut", delay: column * 0.08 }}
-      className="relative flex flex-col items-center rounded-2xl p-4 xl:p-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2460A4]"
+      className="relative flex flex-col items-center rounded-2xl p-3 xl:p-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2460A4]"
     >
       <motion.div
         animate={{ opacity: hovered ? 1 : 0, scale: hovered ? 1 : 0.6 }}
@@ -38,13 +38,13 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
       <motion.div
         animate={{ opacity: hovered ? 1 : 0.5, scale: hovered ? 1.15 : 1.12 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
-        className="relative h-48 w-48 sm:h-56 sm:w-56 lg:h-64 lg:w-64 xl:h-72 xl:w-72"
+        className="relative h-[9.6rem] w-[9.6rem] sm:h-[11.2rem] sm:w-[11.2rem] lg:h-[12.8rem] lg:w-[12.8rem] xl:h-[14.4rem] xl:w-[14.4rem]"
       >
         <Image
           src={item.image}
           alt={item.name}
           fill
-          sizes="(min-width: 1280px) 288px, (min-width: 1024px) 256px, (min-width: 640px) 224px, 192px"
+          sizes="(min-width: 1280px) 230px, (min-width: 1024px) 205px, (min-width: 640px) 179px, 154px"
           draggable={false}
           className="select-none object-contain"
         />
@@ -66,7 +66,7 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
 
 export default function Gallery() {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {WHATS_INSIDE_ITEMS.map((item, i) => (
         <GalleryCard key={item.id} item={item} column={i % 3} />
       ))}

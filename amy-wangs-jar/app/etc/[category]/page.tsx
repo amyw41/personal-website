@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notFound, useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import PlateCircle from "@/components/Etc/PlateCircle";
 import { ARROW_SIZE, MAX_ITEM_SIZE, NEIGHBOR_SCALE, deriveLayout, useElementSize } from "@/components/WhatsInside/layout";
 import { ETC_CATEGORIES, ETC_PHOTOS } from "@/lib/etc";
@@ -76,7 +76,6 @@ export default function EtcCategoryPage() {
   // independently. `index` (the actual centered photo) is just step mod
   // photoCount, derived below once photoCount is known.
   const [step, setStep] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   // Frozen at the design constant, not re-solved per viewport. The whole
   // composition — item spacing, arrow position, plate size, and the
   // plate's own crop line — is designed once at this one fixed size, then
@@ -110,15 +109,6 @@ export default function EtcCategoryPage() {
     prevOffsetsRef.current = new Map();
     workingOffsetsRef.current = new Map();
   }, [category?.slug]);
-
-  useEffect(() => {
-    if (selectedIndex === null) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedIndex(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedIndex]);
 
   if (!category) notFound();
 
@@ -227,8 +217,6 @@ export default function EtcCategoryPage() {
       ? Math.min(availableSize.width / designWidth, availableSize.height / designHeight, MAX_SCALE)
       : 0;
 
-  const selected = selectedIndex !== null ? photos[selectedIndex] : null;
-
   return (
     <section
       className="relative mx-auto flex w-full max-w-[96rem] flex-col overflow-hidden px-4 pt-3 text-center"
@@ -247,7 +235,6 @@ export default function EtcCategoryPage() {
         className={`absolute left-4 top-3 z-20 ${ARROW_BUTTON_CLASS}`}
         onClick={(e) => {
           e.preventDefault();
-          setSelectedIndex(null);
           setIsExiting(true);
         }}
       >
@@ -423,6 +410,16 @@ export default function EtcCategoryPage() {
                   const dist = Math.abs(offset);
                   const isCenter = dist === 0;
                   const imageOpacity = isCenter ? 1 : dist === 1 ? 0.55 : 0;
+                  // Only the immediate left/right neighbors are click
+                  // targets — they're the only non-center photos actually
+                  // visible (dist>=2 sit at opacity 0, still in the DOM but
+                  // invisible, so making them "clickable" would mean
+                  // clicking blank space). `offset` (this photo's true
+                  // signed distance from center, not the freeze-adjusted
+                  // posOffset below) is exactly the single step that lands
+                  // it in the center — the same delta an arrow click would
+                  // take, just aimed at whichever side this photo is on.
+                  const clickable = dist === 1;
 
                   // itemStep stays numerically constant across an ordinary
                   // single-step advance (offset moves opposite to step by
@@ -445,17 +442,32 @@ export default function EtcCategoryPage() {
                   const posOffset = exiting ? prevOffset! : offset;
                   const posDist = Math.abs(posOffset);
                   const itemStep = step + posOffset;
-                  const slot = getArcSlot(itemStep * angleStepDeg, attachRadius);
                   const scale = posDist === 0 ? CENTER_SCALE : posDist === 1 ? NEIGHBOR_SCALE : FAR_SCALE;
+                  // scale (above) grows/shrinks each photo from its own
+                  // center, so a bigger-scaled photo (the center one, 1.1x)
+                  // pushes its bottom edge further from the hub than a
+                  // smaller neighbor's (0.72x, 0.55x) — even though they're
+                  // meant to sit on the same curve. Correcting this by
+                  // recomputing the point at an adjusted RADIUS (through
+                  // getArcSlot, the same math every other position on this
+                  // arc already uses) keeps position and rotation
+                  // self-consistent at any angle — a flat vertical nudge only
+                  // happens to line up at the exact top-center angle, and
+                  // visibly skews at any other angle once combined with the
+                  // item's own rotation (this is what broke last time: the
+                  // "center" item still has a nonzero angle, and therefore a
+                  // nonzero rotation, whenever step isn't exactly 0).
+                  const bottomAlignedRadius = attachRadius + (itemSize * (scale - 1)) / 2;
+                  const slot = getArcSlot(itemStep * angleStepDeg, bottomAlignedRadius);
 
                   return (
                     <motion.button
                       type="button"
                       key={photo.src}
-                      onClick={isCenter ? () => setSelectedIndex(i) : undefined}
-                      aria-label={isCenter ? `Open photo: ${photo.caption}` : undefined}
-                      aria-hidden={!isCenter}
-                      tabIndex={isCenter ? 0 : -1}
+                      onClick={clickable ? () => advance(offset) : undefined}
+                      aria-label={clickable ? `Center photo: ${photo.caption}` : undefined}
+                      aria-hidden={!isCenter && !clickable}
+                      tabIndex={clickable ? 0 : -1}
                       initial={false}
                       animate={{ x: slot.x, y: slot.y, rotate: slot.rotate, scale }}
                       transition={
@@ -465,7 +477,8 @@ export default function EtcCategoryPage() {
                       }
                       style={{
                         zIndex: 10 - dist,
-                        pointerEvents: isCenter ? "auto" : "none",
+                        pointerEvents: clickable ? "auto" : "none",
+                        cursor: clickable ? "pointer" : undefined,
                         width: itemSize,
                         height: itemSize,
                       }}
@@ -496,40 +509,6 @@ export default function EtcCategoryPage() {
         </div>
         )}
       </motion.div>
-
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-6"
-            onClick={() => setSelectedIndex(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="relative flex max-h-[85vh] w-[min(90vw,560px)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => setSelectedIndex(null)}
-                aria-label="Close"
-                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow transition-colors hover:text-[#2460A4]"
-              >
-                <X size={18} />
-              </button>
-              <div className="relative h-[60vh] w-full">
-                <Image src={selected.src} alt={selected.caption} fill className="object-contain" sizes="560px" />
-              </div>
-              <p className="px-6 py-4 font-roboto text-sm text-gray-600">{selected.caption}</p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </section>
   );
 }

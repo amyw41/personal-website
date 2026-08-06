@@ -27,7 +27,7 @@ function MarqueeGroup() {
           key={i}
           className="whitespace-nowrap px-10 font-singsong text-[100px] font-bold leading-none text-white sm:text-[140px] lg:text-[180px]"
         >
-          THANKS FOR VISITING
+          THANKS FOR VISITING •
         </span>
       ))}
     </div>
@@ -86,7 +86,15 @@ export default function Footer() {
           nowhere to go but overlap each other in the middle. */}
       <div className="relative flex w-full flex-col items-center gap-1 bg-black px-4 py-3 text-center sm:h-11 sm:px-0 sm:py-0 sm:text-left">
         <p className="font-roboto text-sm text-white sm:absolute sm:left-[1.918%] sm:top-[11px]">
-          Designed + coded by me (© 2026)
+          Designed + coded by me (© 2026) • with 200 hrs on{" "}
+          <a
+            href="https://open.spotify.com/user/lial0x5vxkue34cmvahelkx4y?si=67c6719b29d7425a"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-[#2460A4]"
+          >
+            Spotify
+          </a>
         </p>
         <p className="font-roboto text-sm text-white sm:absolute sm:right-[1.918%] sm:top-[11px]">
           Looking for my{" "}

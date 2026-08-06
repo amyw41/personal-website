@@ -28,18 +28,18 @@ const ITEMS = [
   // lowest); digi sits at the very front. left values put skullpanda on the
   // left, handcream in the middle, digi on the right — fallOrder is ordered
   // to match (left-to-right entrance sweep for this trio).
-  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 32, size: 180, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
-  { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 50, size: 180, rotate: 0, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 10, lockRotation: true, bodyScale: 0.22 },
-  { src: "/images/items/kitty-mirror.png", alt: "Hello Kitty stand mirror", top: 74, left: 24, size: 180, rotate: 0, density: 0.001, friction: 0.3, restitution: 0.35, frictionAir: 0.01, fallOrder: 7, lockRotation: true },
-  { src: "/images/items/bingsu.png", alt: "Bingsu ice cream cup", top: 66, left: 48, size: 180, rotate: 0, density: 0.0009, friction: 0.4, restitution: 0.2, frictionAir: 0.015, fallOrder: 6 },
-  { src: "/images/items/hufflepuff.png", alt: "Hufflepuff patch", top: 60, left: 28, size: 180, rotate: 0, density: 0.0003, friction: 0.7, restitution: 0.1, frictionAir: 0.03, fallOrder: 8 },
-  { src: "/images/items/ballet.png", alt: "Ballet shoes", top: 93, left: 78, size: 180, rotate: 0, density: 0.0005, friction: 0.5, restitution: 0.15, frictionAir: 0.02, fallOrder: 0 },
-  { src: "/images/items/bottle.png", alt: "Pink water bottle", top: 74, left: 80, size: 180, rotate: 0, density: 0.002, friction: 0.35, restitution: 0.15, frictionAir: 0.008, fallOrder: 4, lockRotation: true },
-  { src: "/images/items/chips.png", alt: "Turtle Chips snack bag", top: 82, left: 32, size: 180, rotate: 0, density: 0.0004, friction: 0.5, restitution: 0.2, frictionAir: 0.025, fallOrder: 3 },
-  { src: "/images/items/pineapple.png", alt: "Pineapple drink can", top: 85, left: 20, size: 180, rotate: 0, density: 0.0016, friction: 0.25, restitution: 0.3, frictionAir: 0.008, fallOrder: 2 },
-  { src: "/images/items/kitty-plush.png", alt: "Hello Kitty plush toy", top: 77, left: 58, size: 180, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 5, lockRotation: true },
-  { src: "/images/items/laneige.png", alt: "Laneige lip balm tube", top: 92, left: 44, size: 180, rotate: 0, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 1, lockRotation: true, bodyScale: 0.22 },
-  { src: "/images/items/digi.png", alt: "Digital camera with beaded strap", top: 88, left: 70, size: 180, rotate: 0, density: 0.0012, friction: 0.4, restitution: 0.2, frictionAir: 0.012, fallOrder: 11, lockRotation: true },
+  { src: "/images/items/skullpanda.png", alt: "Skullpanda blind box charm", top: 70, left: 32, size: 144, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 9, lockRotation: true },
+  { src: "/images/items/handcream.png", alt: "L'Occitane hand cream tube", top: 96, left: 50, size: 144, rotate: 0, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 10, lockRotation: true, bodyScale: 0.22 },
+  { src: "/images/items/kitty-mirror.png", alt: "Hello Kitty stand mirror", top: 74, left: 24, size: 144, rotate: 0, density: 0.001, friction: 0.3, restitution: 0.35, frictionAir: 0.01, fallOrder: 7, lockRotation: true },
+  { src: "/images/items/bingsu.png", alt: "Bingsu ice cream cup", top: 66, left: 48, size: 144, rotate: 0, density: 0.0009, friction: 0.4, restitution: 0.2, frictionAir: 0.015, fallOrder: 6 },
+  { src: "/images/items/hufflepuff.png", alt: "Hufflepuff patch", top: 60, left: 28, size: 144, rotate: 0, density: 0.0003, friction: 0.7, restitution: 0.1, frictionAir: 0.03, fallOrder: 8 },
+  { src: "/images/items/ballet.png", alt: "Ballet shoes", top: 93, left: 78, size: 144, rotate: 0, density: 0.0005, friction: 0.5, restitution: 0.15, frictionAir: 0.02, fallOrder: 0 },
+  { src: "/images/items/bottle.png", alt: "Pink water bottle", top: 74, left: 80, size: 144, rotate: 0, density: 0.002, friction: 0.35, restitution: 0.15, frictionAir: 0.008, fallOrder: 4, lockRotation: true },
+  { src: "/images/items/chips.png", alt: "Turtle Chips snack bag", top: 82, left: 32, size: 144, rotate: 0, density: 0.0004, friction: 0.5, restitution: 0.2, frictionAir: 0.025, fallOrder: 3 },
+  { src: "/images/items/pineapple.png", alt: "Pineapple drink can", top: 85, left: 20, size: 144, rotate: 0, density: 0.0016, friction: 0.25, restitution: 0.3, frictionAir: 0.008, fallOrder: 2 },
+  { src: "/images/items/kitty-plush.png", alt: "Hello Kitty plush toy", top: 77, left: 58, size: 144, rotate: 0, density: 0.0006, friction: 0.6, restitution: 0.15, frictionAir: 0.02, fallOrder: 5, lockRotation: true },
+  { src: "/images/items/laneige.png", alt: "Laneige lip balm tube", top: 92, left: 44, size: 144, rotate: 0, density: 0.0007, friction: 0.4, restitution: 0.25, frictionAir: 0.015, fallOrder: 1, lockRotation: true, bodyScale: 0.22 },
+  { src: "/images/items/digi.png", alt: "Digital camera with beaded strap", top: 88, left: 70, size: 144, rotate: 0, density: 0.0012, friction: 0.4, restitution: 0.2, frictionAir: 0.012, fallOrder: 11, lockRotation: true },
 ];
 
 // Fraction of the jar container's own box (0-1). Approximates the lower body
@@ -369,7 +369,13 @@ export default function Jar() {
         ref={containerRef}
         className="relative w-full max-w-[380px] touch-none overflow-visible"
         style={{
-          aspectRatio: "1412 / 2200",
+          // Matches jar.png's own real pixel ratio (5356x7556, simplified) —
+          // must match exactly, or object-contain below letterboxes the
+          // image inside this box, throwing off WALLS.floorY (a fraction of
+          // *this container*, not the visibly-rendered image) from where
+          // the drawn jar's bottom line actually lands. Re-measure this
+          // alongside WALLS if jar.png is ever swapped for new artwork.
+          aspectRatio: "1339 / 1889",
           // Caps the jar art at 60% of the available height so it (and the
           // heading/subtext below, given the other 40%) can never demand
           // more vertical space than actually exists — on a short, wide

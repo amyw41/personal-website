@@ -79,20 +79,20 @@ export const WHATS_INSIDE_ITEMS: WhatsInsideItem[] = [
     name: "Skullpanda Charm",
     image: "/images/items/skullpanda.png",
     accent: "#BFE0F0",
-    description: "My favorite blind box pull — I collect these.",
+    description: "I like MLP and Skullpandas. Dash is my fav.",
   },
   {
     id: "digi",
     name: "Digital Camera",
     image: "/images/items/digi.png",
     accent: "#F7DCE3",
-    description: "My go-to for grainy, nostalgic photos.",
+    description: "As obsessed with taking digi pics as the girl next door.",
   },
   {
     id: "handcream",
     name: "Hand Cream",
     image: "/images/items/handcream.png",
     accent: "#E3E8EE",
-    description: "Shea butter hand cream, a desk essential.",
+    description: "I have the driest hands ever.",
   },
 ];
