@@ -1,70 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { motion, useAnimation } from "framer-motion";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { motion } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { WHATS_INSIDE_ITEMS } from "@/lib/items";
 import { NEIGHBOR_SCALE, computeLayout, useViewportWidth } from "./layout";
-
-// Purely a fun easter egg — clicking it has no effect beyond the animation
-// itself. Hover expands the whole badge; click makes just the star icon (not
-// the circle behind it) hop up and spin, so it reads as "jumping out of the
-// circle" rather than the badge itself moving. `stopPropagation` keeps the
-// click from also bubbling up to the carousel item underneath it.
-function StarBadge() {
-  const starControls = useAnimation();
-  // Separate from starControls (which only ever animates the icon inside) —
-  // this owns the button's own scale so "big while spinning" is guaranteed
-  // regardless of hover state (e.g. on touch, where there's no hover at all
-  // to fall back on) instead of depending on whileHover still being active
-  // when the tap/click gesture ends.
-  const buttonControls = useAnimation();
-  const bounce = () => {
-    // Grows quickly, holds at the big size for most of the spin, then eases
-    // back down right at the end — same 0.7s duration as the icon's own
-    // spin below, so the two stay in sync.
-    buttonControls.start({
-      scale: [1, 1.15, 1.15, 1],
-      transition: { duration: 0.7, times: [0, 0.15, 0.85, 1], ease: "easeInOut" },
-    });
-    starControls.start({
-      y: [0, -14, 0],
-      // rotateY (spinning around a vertical axis), not a flat rotate
-      // (rotateZ) — a flat rotate just spins the icon like a pinwheel in its
-      // own plane, with no sense of depth. rotateY actually narrows the icon
-      // toward its center as it turns edge-on (at 90/270deg) before
-      // widening back out, the same way a spinning person visually narrows
-      // as they turn side-on — two full turns reads more like a skater's
-      // spin than a single one. transformPerspective (below) is what makes
-      // that foreshortening actually visible instead of just stretching.
-      rotateY: [0, 720],
-      transition: { duration: 0.7, ease: "easeInOut" },
-    });
-  };
-
-  return (
-    <motion.button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        bounce();
-      }}
-      animate={buttonControls}
-      whileHover={{ scale: 1.15 }}
-      aria-label="It's a star! (does nothing, just for fun)"
-      className="flex h-[1.875rem] w-[1.875rem] items-center justify-center rounded-full bg-[#2460A4] text-white"
-    >
-      <motion.span
-        animate={starControls}
-        style={{ transformPerspective: 200 }}
-        className="flex items-center justify-center"
-      >
-        <Star size={15} strokeWidth={2.5} fill="currentColor" />
-      </motion.span>
-    </motion.button>
-  );
-}
+import StarBadge from "./StarBadge";
 
 const ITEM_COUNT = WHATS_INSIDE_ITEMS.length;
 const ARROW_BUTTON_CLASS =
@@ -73,6 +15,15 @@ const ARROW_BUTTON_CLASS =
 // — kept constant so the track always has enough headroom for the center
 // item's 1.3x hover/active scale without clipping it against overflow-hidden.
 const TRACK_HEIGHT_RATIO = 448 / 360;
+// Extra headroom on top of the ratio above, sized to fit the star badge's
+// own hover-grow/click-bounce and its icon's upward jump-spin — fixed px,
+// not scaled by itemSize, since the badge itself is a fixed rem size
+// regardless of viewport. Lets the badge stay nested inside the centered
+// item's own box (see its placement below) instead of needing to live
+// outside the track as a separate element synced to match — nested, it
+// naturally travels with whichever item is centered during a transition,
+// for free, since it's part of that item's own animated box.
+const STAR_HEADROOM_PX = 48;
 // Caps this carousel's own item size at 0.8x the shared MAX_ITEM_SIZE
 // (layout.ts's own 440px design ceiling) — passed as computeLayout's own
 // second argument rather than changing MAX_ITEM_SIZE itself, since that
@@ -86,33 +37,22 @@ const CAROUSEL_MAX_ITEM_SIZE = 352;
 const CENTER_SCALE = 1.3;
 const FAR_SCALE = 0.55;
 
-export default function Carousel() {
+export default function Carousel({
+  litItems,
+  onToggleLit,
+}: {
+  litItems: Set<string>;
+  onToggleLit: (id: string) => void;
+}) {
   const [index, setIndex] = useState(0);
   const viewportWidth = useViewportWidth();
   const { itemSize, imageSize, spacing, containerWidth, gap } = computeLayout(viewportWidth, CAROUSEL_MAX_ITEM_SIZE);
-  const trackHeight = itemSize * TRACK_HEIGHT_RATIO;
+  const trackHeight = itemSize * TRACK_HEIGHT_RATIO + STAR_HEADROOM_PX;
 
   // Wraps so the carousel loops infinitely: index -1 becomes the last item,
   // index ITEM_COUNT becomes the first.
   const goTo = (i: number) => setIndex(((i % ITEM_COUNT) + ITEM_COUNT) % ITEM_COUNT);
 
-  // How far (and which way) the new center item just came from — the
-  // shortest signed wrapped distance from the previous index to this one.
-  // Computed directly during render (not an effect) so it's ready on the
-  // very same render the index changes, with no extra render pass/flash.
-  // The star wrapper below uses this as its own entrance offset, springing
-  // in from that direction to 0 — the same distance the incoming item
-  // itself travels — so the badge visibly "arrives with" whichever item
-  // just became centered instead of sitting static at dead center through
-  // every transition.
-  const prevIndexRef = useRef(index);
-  let starDirection = 0;
-  if (prevIndexRef.current !== index) {
-    let diff = ((index - prevIndexRef.current) % ITEM_COUNT + ITEM_COUNT) % ITEM_COUNT;
-    if (diff > ITEM_COUNT / 2) diff -= ITEM_COUNT;
-    starDirection = diff;
-    prevIndexRef.current = index;
-  }
 
   // Shortest signed distance from `index` to `i` around the loop, e.g. with 9
   // items, the item right after the last one is offset +1 from it (not -8) so
@@ -226,6 +166,30 @@ export default function Carousel() {
                     />
                   </motion.div>
 
+                  {/* Anchored to the outer itemSize box (bigger than the
+                      imageSize box above, by design — see IMAGE_RATIO), not
+                      to the image itself — sitting in that existing margin
+                      instead of pinned tight against the artwork's own edge
+                      is what keeps it reading consistently across items,
+                      whatever each product photo's own shape happens to be
+                      (same idea Gallery's badge uses, anchored to its outer
+                      card rather than its image box). Nested here (inside
+                      the item's own animated box) rather than as a separate
+                      overlay is what lets it travel with the item for free
+                      during slide transitions — STAR_HEADROOM_PX above is
+                      what keeps its own hover/click growth from clipping
+                      against the track's overflow-hidden from this spot. */}
+                  {isCenter && (
+                    <div className="absolute right-2 top-2">
+                      <StarBadge
+                        size={30}
+                        iconSize={15}
+                        lit={litItems.has(item.id)}
+                        onToggle={() => onToggleLit(item.id)}
+                      />
+                    </div>
+                  )}
+
                   {/* span, not p — this now lives inside a <button>, and a
                       <p> isn't valid phrasing content there. */}
                   <motion.span
@@ -262,34 +226,6 @@ export default function Carousel() {
         >
           <ChevronRight size={23} strokeWidth={1.25} />
         </button>
-
-        {/* Rendered as a sibling of the track, outside its overflow-hidden +
-            edge-fade mask — nested inside the track (its old spot), the
-            badge's own hover/click growth and the star's jump could poke
-            past the track's clip bounds and get visibly cut off. The
-            centered item always sits at this exact spot (dead center, at
-            CENTER_SCALE) regardless of which item it is, so one fixed
-            overlay covers every case without needing to track a moving
-            per-item position. pointer-events-none on the outer sizing
-            wrapper keeps it from blocking clicks on the item underneath;
-            pointer-events-auto on the inner one re-enables just the badge.
-            key={index} + initial/animate is what makes it arrive *with* the
-            incoming item (see starDirection's own comment) instead of
-            sitting static through every transition — each index change
-            remounts it fresh, springing in from the same distance/direction
-            the new center item itself just traveled. */}
-        <motion.div
-          key={index}
-          initial={{ x: starDirection * spacing }}
-          animate={{ x: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ width: itemSize * CENTER_SCALE, height: itemSize * CENTER_SCALE }}
-        >
-          <div className="pointer-events-auto absolute right-2 top-2">
-            <StarBadge />
-          </div>
-        </motion.div>
       </motion.div>
 
       <div className="mt-20 flex items-center justify-center gap-3">

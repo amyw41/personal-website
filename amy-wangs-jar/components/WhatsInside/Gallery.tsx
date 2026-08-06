@@ -3,15 +3,25 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Star } from "lucide-react";
 import { WHATS_INSIDE_ITEMS, type WhatsInsideItem } from "@/lib/items";
+import StarBadge from "./StarBadge";
 
 // Card padding + image size step up together across breakpoints (p-4/192px
 // at base up to p-9/288px at xl) — the original fixed p-9 + 256-288px image
 // only ever fit comfortably on wide desktop viewports; at grid-cols-1 on a
 // 320-375px phone it alone exceeded the available width. Each tier below is
 // sized to fit its narrowest viewport with real margin, not just eyeballed.
-function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }) {
+function GalleryCard({
+  item,
+  column,
+  lit,
+  onToggleLit,
+}: {
+  item: WhatsInsideItem;
+  column: number;
+  lit: boolean;
+  onToggleLit: () => void;
+}) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -30,9 +40,9 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
       <motion.div
         animate={{ opacity: hovered ? 1 : 0, scale: hovered ? 1 : 0.6 }}
         transition={{ type: "spring", stiffness: 400, damping: 20 }}
-        className="absolute right-[1.125rem] top-[1.125rem] flex h-[2.625rem] w-[2.625rem] items-center justify-center rounded-full bg-[#2460A4] text-white"
+        className="absolute right-[1.125rem] top-[1.125rem]"
       >
-        <Star size={21} strokeWidth={2.5} fill="currentColor" />
+        <StarBadge size={42} iconSize={21} lit={lit} onToggle={onToggleLit} />
       </motion.div>
 
       <motion.div
@@ -64,11 +74,23 @@ function GalleryCard({ item, column }: { item: WhatsInsideItem; column: number }
   );
 }
 
-export default function Gallery() {
+export default function Gallery({
+  litItems,
+  onToggleLit,
+}: {
+  litItems: Set<string>;
+  onToggleLit: (id: string) => void;
+}) {
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {WHATS_INSIDE_ITEMS.map((item, i) => (
-        <GalleryCard key={item.id} item={item} column={i % 3} />
+        <GalleryCard
+          key={item.id}
+          item={item}
+          column={i % 3}
+          lit={litItems.has(item.id)}
+          onToggleLit={() => onToggleLit(item.id)}
+        />
       ))}
     </div>
   );

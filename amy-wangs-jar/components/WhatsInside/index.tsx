@@ -21,6 +21,21 @@ export default function WhatsInside() {
   const viewportWidth = useViewportWidth();
   const { totalWidth } = computeLayout(viewportWidth);
 
+  // Which items' star badges are "lit" (yellow) — lives here, above both
+  // views, rather than inside Carousel/Gallery individually, so starring an
+  // item in one view still shows it starred after switching to the other
+  // (they're the same underlying item, just two different presentations of
+  // it). Keyed by item id, not index, so it stays correct regardless of
+  // ordering in either view.
+  const [litItems, setLitItems] = useState<Set<string>>(new Set());
+  const toggleLit = (id: string) =>
+    setLitItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   return (
     // pt-36/pb-36 are equal on purpose: this section is self-contained, like
     // Jar's own min-height + flex centering. Don't tune either value to
@@ -79,7 +94,11 @@ export default function WhatsInside() {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className={view === "gallery" ? "mt-[2px]" : undefined}
           >
-            {view === "gallery" ? <Gallery /> : <Carousel />}
+            {view === "gallery" ? (
+              <Gallery litItems={litItems} onToggleLit={toggleLit} />
+            ) : (
+              <Carousel litItems={litItems} onToggleLit={toggleLit} />
+            )}
           </motion.div>
         </AnimatePresence>
       </motion.div>
