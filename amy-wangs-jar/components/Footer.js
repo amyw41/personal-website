@@ -27,7 +27,7 @@ function MarqueeGroup() {
           key={i}
           className="whitespace-nowrap px-10 font-singsong text-[100px] font-bold leading-none text-white sm:text-[140px] lg:text-[180px]"
         >
-          THANKS FOR VISITING •
+          THANKS FOR VISITING
         </span>
       ))}
     </div>
