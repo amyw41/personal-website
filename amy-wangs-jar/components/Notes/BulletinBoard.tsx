@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import StickyNote from "./StickyNote";
-import { BOARD_WIDTH, BOARD_HEIGHT, generateStickyNotes } from "@/lib/notes";
+import { BOARD_WIDTH, BOARD_HEIGHT, SAFE_AREA, generateStickyNotes } from "@/lib/notes";
 
 const NOTE_COUNT = 13;
 // Generated once at module load (not per-render) with a fixed seed — see
@@ -11,46 +11,63 @@ const NOTE_COUNT = 13;
 // Math.random().
 const NOTES = generateStickyNotes(NOTE_COUNT);
 
-// Zoom is expressed as a multiplier on top of "fit the whole board in the
-// viewport" rather than an absolute number, so it stays sensible at any
-// viewport size: MIN_SCALE_FACTOR 1 means you can never zoom out past
-// seeing the entire board (no point — it'd just add empty space around
-// it), MAX_SCALE_FACTOR 6 is close enough to native resolution to read a
-// note's placeholder text comfortably.
-const MIN_SCALE_FACTOR = 1;
-const MAX_SCALE_FACTOR = 6;
+// How much bigger than "fit the whole safe area in the viewport" the fixed
+// starting scale is — 2 means notes render at 2x that baseline size, with
+// the extra half now off-screen on each axis reachable only by dragging.
+// There's no zoom control to change this at runtime; tune this constant
+// and reload to try a different starting scale.
+const INITIAL_ZOOM = 3.8;
+
+// Safe-area rectangle, in the same pixel space as BOARD_WIDTH/BOARD_HEIGHT
+// (i.e. the "world" the pannable layer lives in). Computed once here so
+// fitToViewport/clampTranslate don't recompute it on every call.
+const SAFE_LEFT_PX = (BOARD_WIDTH * SAFE_AREA.xMin) / 100;
+const SAFE_TOP_PX = (BOARD_HEIGHT * SAFE_AREA.yMin) / 100;
+const SAFE_WIDTH_PX = (BOARD_WIDTH * (SAFE_AREA.xMax - SAFE_AREA.xMin)) / 100;
+const SAFE_HEIGHT_PX = (BOARD_HEIGHT * (SAFE_AREA.yMax - SAFE_AREA.yMin)) / 100;
 
 type Point = { x: number; y: number };
 
-function distance(a: Point, b: Point) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function midpoint(a: Point, b: Point): Point {
-  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-}
-
-// Pan/zoom viewport for the bulletin board. The outer element below (the
-// one with overflow-hidden) is the only frozen thing on the page — it's
-// the fixed "window" the user looks through. Everything else (board
-// image, "Welcome to my mind", every sticky note) lives inside the single
-// inner "world" div and pans/zooms together as one layer via a single CSS
-// transform.
+// Pan-only board (no zoom), built from three stacked layers so the drawn
+// frame can never be panned along with the content, and content can never
+// be panned past the frame's own INNER line:
+//
+// 1. `frameRef` — sized (via boardBox, below) to the bulletin-board PNG's
+//    exact aspect ratio. Hosts the frame artwork at full size, unclipped —
+//    this is the fixed "outside" the user never moves.
+// 2. `viewportRef` — absolutely positioned *inside* frameRef at the
+//    SAFE_AREA percentages (lib/notes.ts), with its own overflow-hidden.
+//    This is the real pan viewport: every fit/clamp/pointer calculation
+//    below measures and clips against THIS box, not frameRef, so panned
+//    content is clipped at the frame's inner line, never the outer edge of
+//    the image. "Welcome to my mind" is a direct child of this box too —
+//    positioned in on-screen percentages, not world coordinates — so it
+//    stays put ("sticky") no matter how far the notes underneath are
+//    panned or dragged.
+// 3. The pannable "world" div inside it, holding only the sticky notes —
+//    unchanged in its own coordinate space (still the full BOARD_WIDTH ×
+//    BOARD_HEIGHT that every note's xPct/yPct is relative to).
+//
+// The scale that fits the safe area into the viewport is computed once on
+// mount/resize (fitToViewport) and then held fixed — there's no scroll-
+// wheel or pinch zoom, only drag-to-pan.
 export default function BulletinBoard() {
+  // Outermost, unconstrained-ratio slot — just centers frameRef.
+  const slotRef = useRef<HTMLDivElement>(null);
+  // Sized (in real px) to the PNG's own aspect ratio — see updateBoardBox.
+  const frameRef = useRef<HTMLDivElement>(null);
+  // The real pan viewport — the frame's inner (SAFE_AREA) rectangle.
   const viewportRef = useRef<HTMLDivElement>(null);
-  // The "fit whole board to viewport" scale for the current viewport size —
-  // recomputed on mount and on resize. Read from a ref (not state) inside
-  // the wheel/pinch handlers below so they always clamp against the
-  // current value without needing to be re-subscribed on every resize.
-  const fitScaleRef = useRef(0.2);
+  const [boardBox, setBoardBox] = useState({ w: 0, h: 0 });
+
+  // Fixed scale that fits the safe area into the viewport — recomputed on
+  // mount and on resize, but never changed by user interaction (no zoom).
   const [scale, setScale] = useState(0.2);
   const [translate, setTranslate] = useState<Point>({ x: 0, y: 0 });
   // Mirrors of the two state values above, updated in lockstep with every
   // setScale/setTranslate call (via the two setters below) rather than
-  // only after a render commits. The wheel/pan/pinch handlers read from
-  // these instead of the state closure so two gesture updates arriving in
-  // the same tick (e.g. a fast wheel burst) always compute from the
-  // latest value instead of both starting from the same stale one.
+  // only after a render commits, so the pointer-move handler always reads
+  // the latest value instead of a stale closure.
   const scaleRef = useRef(scale);
   const translateRef = useRef(translate);
 
@@ -64,28 +81,27 @@ export default function BulletinBoard() {
     setTranslate(next);
   }, []);
 
-  const clampScale = useCallback((next: number) => {
-    const fit = fitScaleRef.current;
-    return Math.min(Math.max(next, fit * MIN_SCALE_FACTOR), fit * MAX_SCALE_FACTOR);
-  }, []);
-
-  // Keeps the world layer from ever panning past its own edges: once
-  // zoomed in past fit-scale, translate is clamped to [viewportSize -
-  // worldSize, 0] on each axis (standard "content larger than container"
-  // bounds) so the board always fills the viewport with no empty gaps at
-  // the edges. At-or-below fit-scale on an axis, that axis is just
-  // centered — there's no room to pan it anyway.
+  // Keeps the SAFE_AREA rectangle (not the whole world) from ever panning
+  // past its own edges: its screen position — translate shifted by how far
+  // its top-left corner sits inside the world (SAFE_LEFT_PX/SAFE_TOP_PX) —
+  // is clamped to [viewportSize - safeSize, 0] on each axis (standard
+  // "content larger than container" bounds), so the visible content always
+  // fills viewportRef with no gaps at its edges. If an axis's content is
+  // already smaller than the viewport, that axis is just centered instead
+  // — there's no room to pan it anyway.
   const clampTranslate = useCallback((t: Point, s: number): Point => {
     const vp = viewportRef.current;
     if (!vp) return t;
     const { width: vw, height: vh } = vp.getBoundingClientRect();
-    const worldW = BOARD_WIDTH * s;
-    const worldH = BOARD_HEIGHT * s;
-    const clampAxis = (value: number, viewportSize: number, worldSize: number) => {
-      if (worldSize <= viewportSize) return (viewportSize - worldSize) / 2;
-      return Math.min(0, Math.max(viewportSize - worldSize, value));
+    const safeW = SAFE_WIDTH_PX * s;
+    const safeH = SAFE_HEIGHT_PX * s;
+    const clampAxis = (value: number, viewportSize: number, contentSize: number) => {
+      if (contentSize <= viewportSize) return (viewportSize - contentSize) / 2;
+      return Math.min(0, Math.max(viewportSize - contentSize, value));
     };
-    return { x: clampAxis(t.x, vw, worldW), y: clampAxis(t.y, vh, worldH) };
+    const effX = clampAxis(t.x + SAFE_LEFT_PX * s, vw, safeW) - SAFE_LEFT_PX * s;
+    const effY = clampAxis(t.y + SAFE_TOP_PX * s, vh, safeH) - SAFE_TOP_PX * s;
+    return { x: effX, y: effY };
   }, []);
 
   const fitToViewport = useCallback(() => {
@@ -93,126 +109,88 @@ export default function BulletinBoard() {
     if (!vp) return;
     const { width: vw, height: vh } = vp.getBoundingClientRect();
     if (!vw || !vh) return;
-    // 0.96 leaves a hair of breathing room so the drawn frame doesn't sit
-    // flush against the viewport's own edge on load.
-    const fit = Math.min(vw / BOARD_WIDTH, vh / BOARD_HEIGHT) * 0.96;
-    fitScaleRef.current = fit;
+    // Base "fit" would show the whole safe area at once (0.99 = a hair of
+    // breathing room so a note can never sit flush against, or a pixel
+    // past, the drawn inner line) — then INITIAL_ZOOM blows that up so
+    // notes render noticeably larger, with dragging needed to reach
+    // whatever's now off-screen. The centering math below still applies
+    // unchanged at this bigger scale: it just centers on the safe area's
+    // middle instead of fitting its edges, and clampTranslate (which reads
+    // this same scale) is what defines how far that leaves room to pan.
+    const fit = Math.min(vw / SAFE_WIDTH_PX, vh / SAFE_HEIGHT_PX) * 0.99 * INITIAL_ZOOM;
     applyScale(fit);
-    applyTranslate({ x: (vw - BOARD_WIDTH * fit) / 2, y: (vh - BOARD_HEIGHT * fit) / 2 });
+    applyTranslate({
+      x: (vw - SAFE_WIDTH_PX * fit) / 2 - SAFE_LEFT_PX * fit,
+      y: (vh - SAFE_HEIGHT_PX * fit) / 2 - SAFE_TOP_PX * fit,
+    });
   }, [applyScale, applyTranslate]);
 
-  useEffect(() => {
-    fitToViewport();
-    window.addEventListener("resize", fitToViewport);
-    return () => window.removeEventListener("resize", fitToViewport);
-  }, [fitToViewport]);
-
-  // Manual, non-passive wheel listener: React attaches its synthetic
-  // onWheel passively, so calling preventDefault() from inside it silently
-  // fails to stop the page itself from scrolling while the cursor is over
-  // the board. A plain addEventListener with { passive: false } is the
-  // standard workaround for a custom scroll-to-zoom interaction.
-  useEffect(() => {
-    const vp = viewportRef.current;
-    if (!vp) return;
-    function onWheel(e: WheelEvent) {
-      e.preventDefault();
-      const rect = vp!.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
-      const prevScale = scaleRef.current;
-      const prevT = translateRef.current;
-      const factor = Math.exp(-e.deltaY * 0.001);
-      const nextScale = clampScale(prevScale * factor);
-      // Zoom-to-cursor: keep whatever world point was under the pointer
-      // still under the pointer after the scale changes. Computed as one
-      // plain synchronous block (not a setState updater nesting another
-      // setState updater) — React Strict Mode double-invokes impure
-      // updater functions in dev, and an updater that calls another
-      // setState as a side effect is exactly that, which was silently
-      // doubling every zoom's pan delta on whichever axis wasn't already
-      // clamped to center.
-      const worldX = (px - prevT.x) / prevScale;
-      const worldY = (py - prevT.y) / prevScale;
-      const nextT = clampTranslate({ x: px - worldX * nextScale, y: py - worldY * nextScale }, nextScale);
-      applyScale(nextScale);
-      applyTranslate(nextT);
+  // Recomputes frameRef's pixel box from the slot's current size — the
+  // largest box at BOARD_WIDTH/BOARD_HEIGHT's ratio that fits inside it,
+  // centered by the slot's own flex centering. Runs on mount and on every
+  // window resize.
+  const updateBoardBox = useCallback(() => {
+    const slot = slotRef.current;
+    if (!slot) return;
+    const { width: sw, height: sh } = slot.getBoundingClientRect();
+    if (!sw || !sh) return;
+    const ratio = BOARD_WIDTH / BOARD_HEIGHT;
+    let w = sw;
+    let h = w / ratio;
+    if (h > sh) {
+      h = sh;
+      w = h * ratio;
     }
-    vp.addEventListener("wheel", onWheel, { passive: false });
-    return () => vp.removeEventListener("wheel", onWheel);
-  }, [clampScale, clampTranslate, applyScale, applyTranslate]);
+    setBoardBox((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+  }, []);
 
-  // Pointer-based pan + pinch-zoom. Pointer events unify mouse and touch,
-  // so the same handlers drive click-drag-to-pan on desktop and
-  // single-finger drag-to-pan on touch; a second simultaneous pointer
-  // switches to pinch-zoom. Pointer-downs that start on a sticky note
-  // never arrive here — StickyNote stops that event's propagation itself.
-  const pointers = useRef(new Map<number, Point>());
+  useEffect(() => {
+    updateBoardBox();
+    window.addEventListener("resize", updateBoardBox);
+    return () => window.removeEventListener("resize", updateBoardBox);
+  }, [updateBoardBox]);
+
+  // Only once frameRef (and therefore the viewportRef sized as a percentage
+  // of it) has actually taken on boardBox's real pixel size — i.e. after
+  // that state has committed and painted — does measuring viewportRef to
+  // (re)fit the safe area make sense.
+  useEffect(() => {
+    if (boardBox.w > 0 && boardBox.h > 0) fitToViewport();
+  }, [boardBox, fitToViewport]);
+
+  // Single-pointer drag-to-pan. Pointer events unify mouse and touch, so
+  // the same handlers drive click-drag on desktop and single-finger drag on
+  // touch. Only one pointer is ever tracked (no pinch/zoom) — a second
+  // simultaneous pointer is ignored until the first is released. Pointer-
+  // downs that start on a sticky note never arrive here — StickyNote stops
+  // that event's propagation itself.
+  const activePointerId = useRef<number | null>(null);
   const panState = useRef<{ start: Point; translate: Point } | null>(null);
-  const pinchState = useRef<{ dist: number; mid: Point; scale: number; translate: Point } | null>(null);
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (activePointerId.current !== null) return;
     // setPointerCapture can throw (e.g. InvalidPointerId) in edge cases the
     // browser doesn't consider an active pointer — guarded so a throw here
     // can't skip the state updates below and silently no-op the drag.
     try {
       viewportRef.current?.setPointerCapture(e.pointerId);
     } catch {}
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 1) {
-      panState.current = { start: { x: e.clientX, y: e.clientY }, translate: translateRef.current };
-      pinchState.current = null;
-    } else if (pointers.current.size === 2) {
-      const pts = [...pointers.current.values()];
-      panState.current = null;
-      pinchState.current = {
-        dist: distance(pts[0], pts[1]),
-        mid: midpoint(pts[0], pts[1]),
-        scale: scaleRef.current,
-        translate: translateRef.current,
-      };
-    }
+    activePointerId.current = e.pointerId;
+    panState.current = { start: { x: e.clientX, y: e.clientY }, translate: translateRef.current };
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!pointers.current.has(e.pointerId)) return;
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (pointers.current.size === 1 && panState.current) {
-      const { start, translate: startTranslate } = panState.current;
-      const dx = e.clientX - start.x;
-      const dy = e.clientY - start.y;
-      applyTranslate(clampTranslate({ x: startTranslate.x + dx, y: startTranslate.y + dy }, scaleRef.current));
-    } else if (pointers.current.size === 2 && pinchState.current) {
-      const pts = [...pointers.current.values()];
-      const newDist = distance(pts[0], pts[1]);
-      const newMid = midpoint(pts[0], pts[1]);
-      const { dist, mid, scale: startScale, translate: startTranslate } = pinchState.current;
-      const nextScale = clampScale(startScale * (newDist / dist));
-      const worldX = (mid.x - startTranslate.x) / startScale;
-      const worldY = (mid.y - startTranslate.y) / startScale;
-      // Fingers can drift together while pinching, not just apart/closer —
-      // fold that midpoint movement in as pan on top of the zoom-to-point
-      // math, or a two-finger pinch-drag would only zoom and ignore the pan.
-      const midDx = newMid.x - mid.x;
-      const midDy = newMid.y - mid.y;
-      applyScale(nextScale);
-      applyTranslate(
-        clampTranslate({ x: mid.x - worldX * nextScale + midDx, y: mid.y - worldY * nextScale + midDy }, nextScale)
-      );
-    }
+    if (e.pointerId !== activePointerId.current || !panState.current) return;
+    const { start, translate: startTranslate } = panState.current;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    applyTranslate(clampTranslate({ x: startTranslate.x + dx, y: startTranslate.y + dy }, scaleRef.current));
   }
 
   function endPointer(e: React.PointerEvent<HTMLDivElement>) {
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size === 0) {
-      panState.current = null;
-      pinchState.current = null;
-    } else if (pointers.current.size === 1) {
-      const [remaining] = pointers.current.values();
-      panState.current = { start: remaining, translate: translateRef.current };
-      pinchState.current = null;
-    }
+    if (e.pointerId !== activePointerId.current) return;
+    activePointerId.current = null;
+    panState.current = null;
   }
 
   // Every dragged note claims a fresh top z-index for the duration of its
@@ -225,60 +203,88 @@ export default function BulletinBoard() {
   }, []);
 
   return (
-    <div
-      ref={viewportRef}
-      className="relative mx-auto w-full max-w-6xl cursor-grab touch-none select-none overflow-hidden rounded-lg bg-[#e9e4da] active:cursor-grabbing"
-      style={{ height: "70vh", touchAction: "none" }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endPointer}
-      onPointerCancel={endPointer}
-    >
-      <div
-        className="absolute left-0 top-0 origin-top-left"
-        style={{
-          width: BOARD_WIDTH,
-          height: BOARD_HEIGHT,
-          transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-        }}
-      >
+    // Outer slot: just a centering box. Fills its parent's full height
+    // (the page's flex-1/min-h-0 wrapper, itself capped to one viewport
+    // below the header) instead of a fixed vh guess, so the whole board is
+    // guaranteed to be visible on load with no scrolling needed.
+    <div ref={slotRef} className="mx-auto flex h-full w-full items-center justify-center">
+      {/* Layer 1: the frame — sized to the PNG's own aspect ratio, hosts
+          the artwork unclipped and full-size. This box itself never pans;
+          only the world layer (3) inside its viewport (2) does. */}
+      <div ref={frameRef} className="relative" style={{ width: boardBox.w || undefined, height: boardBox.h || undefined }}>
         <Image
           src="/images/drawings/bulletin-board.png"
           alt=""
-          width={BOARD_WIDTH}
-          height={BOARD_HEIGHT}
+          fill
           priority
           draggable={false}
           unoptimized
-          className="pointer-events-none block h-full w-full select-none"
+          className="pointer-events-none select-none object-contain"
         />
 
+        {/* Layer 2: the real pan viewport, clipped to the frame's own INNER
+            line (SAFE_AREA) rather than the outer image edge — so panned
+            content can never scroll into the margin between the inner line
+            and the outer drawn border. */}
         <div
-          className="pointer-events-none absolute whitespace-nowrap font-singsong text-[#2460A4]"
+          ref={viewportRef}
+          className="absolute cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
           style={{
-            left: "50%",
-            top: "8%",
-            transform: "translate(-50%, -50%) rotate(-2deg)",
-            fontSize: 150,
+            left: `${SAFE_AREA.xMin}%`,
+            top: `${SAFE_AREA.yMin}%`,
+            width: `${SAFE_AREA.xMax - SAFE_AREA.xMin}%`,
+            height: `${SAFE_AREA.yMax - SAFE_AREA.yMin}%`,
+            touchAction: "none",
           }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
         >
-          Welcome to my mind
-        </div>
+          {/* "Welcome to my mind" — sticky: a direct child of the
+              viewport, positioned in on-screen percentages rather than
+              world coordinates, so it never moves when the notes layer
+              below is panned or a note is dragged past/under it. */}
+          <div
+            className="pointer-events-none absolute z-10 whitespace-nowrap font-instrument text-[clamp(1.5rem,4vw,3rem)] text-[#2460A4]"
+            style={{
+              left: "50%",
+              top: "4%",
+              transform: "translate(-50%, -50%) rotate(-2deg)",
+            }}
+          >
+            Welcome to my mind
+          </div>
 
-        {NOTES.map((note) => (
-          <StickyNote
-            key={note.id}
-            xPct={note.xPct}
-            yPct={note.yPct}
-            rotation={note.rotation}
-            color={note.color}
-            text={note.text}
-            width={note.width}
-            height={note.height}
-            scale={scale}
-            onLift={liftNote}
-          />
-        ))}
+          {/* Layer 3: the pannable "world" — sticky notes only.
+              Coordinate space is still the full BOARD_WIDTH × BOARD_HEIGHT
+              (every note's xPct/yPct is relative to that); only the
+              fit/translate math above changed to center the SAFE_AREA
+              sub-rectangle of it into the viewport above. */}
+          <div
+            className="absolute left-0 top-0 origin-top-left"
+            style={{
+              width: BOARD_WIDTH,
+              height: BOARD_HEIGHT,
+              transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+            }}
+          >
+            {NOTES.map((note) => (
+              <StickyNote
+                key={note.id}
+                xPct={note.xPct}
+                yPct={note.yPct}
+                rotation={note.rotation}
+                color={note.color}
+                text={note.text}
+                width={note.width}
+                height={note.height}
+                scale={scale}
+                onLift={liftNote}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

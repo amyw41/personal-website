@@ -20,6 +20,26 @@ export const BOARD_HEIGHT = 3136;
 // a corner needs more inset than a mid-edge measurement alone would give.
 export const SAFE_AREA = { xMin: 6.5, xMax: 93.5, yMin: 10, yMax: 90.5 };
 
+// How much of SAFE_AREA's own span the *initial random scatter* is allowed
+// to use — 1 would spread notes across the whole safe area (the old
+// behavior); smaller pulls the scatter in toward the center so notes land
+// closer together/more clustered, without changing SAFE_AREA itself (which
+// stays the real boundary a *dragged* note can still be moved out to).
+const SCATTER_SPREAD = 0.55;
+
+// SAFE_AREA, shrunk toward its own center by SCATTER_SPREAD — this is what
+// generateStickyNotes actually samples from below.
+const xSpan = (SAFE_AREA.xMax - SAFE_AREA.xMin) * SCATTER_SPREAD;
+const ySpan = (SAFE_AREA.yMax - SAFE_AREA.yMin) * SCATTER_SPREAD;
+const xCenter = (SAFE_AREA.xMin + SAFE_AREA.xMax) / 2;
+const yCenter = (SAFE_AREA.yMin + SAFE_AREA.yMax) / 2;
+const SCATTER_AREA = {
+  xMin: xCenter - xSpan / 2,
+  xMax: xCenter + xSpan / 2,
+  yMin: yCenter - ySpan / 2,
+  yMax: yCenter + ySpan / 2,
+};
+
 export type StickyNoteData = {
   id: string;
   xPct: number;
@@ -95,8 +115,8 @@ export function generateStickyNotes(count: number, seed = 12345): StickyNoteData
     const width = Math.round(320 + rand() * 100); // 320-420 world px
     const height = Math.round(300 + rand() * 90); // 300-390 world px
     const raw = clampToSafeArea(
-      SAFE_AREA.xMin + rand() * (SAFE_AREA.xMax - SAFE_AREA.xMin),
-      SAFE_AREA.yMin + rand() * (SAFE_AREA.yMax - SAFE_AREA.yMin),
+      SCATTER_AREA.xMin + rand() * (SCATTER_AREA.xMax - SCATTER_AREA.xMin),
+      SCATTER_AREA.yMin + rand() * (SCATTER_AREA.yMax - SCATTER_AREA.yMin),
       width,
       height
     );

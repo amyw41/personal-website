@@ -282,7 +282,7 @@ export default function EtcCategoryPage() {
 
   return (
     <section
-      className="relative mx-auto flex w-full max-w-[96rem] flex-col overflow-hidden px-4 pt-3 text-center"
+      className="relative mx-auto flex w-full max-w-[96rem] flex-col overflow-hidden px-4 pt-6 text-center"
       style={{
         // Caps this page to exactly one viewport below the sticky header
         // (same --taskbar-height var Jar.js's hero reads). The composition

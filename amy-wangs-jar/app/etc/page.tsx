@@ -59,6 +59,13 @@ type CollageCategory = {
 // plate's edge (the raw anchors merely touch the plate, not overlap it).
 // These are the resolved numbers from that tuning — editing one photo now
 // just means changing its own field here directly, nothing to recompute.
+// Plate yPct values are uniformly spaced — 9.7, 36.8, 63.9, 91.0, each
+// 27.1 apart — anchored at the original first (drawing, 9.7) and last
+// (content, 91.0) plates, with nails and dancing moved to sit evenly
+// between them. Dancing's photos shifted by the same -3.3 delta as its
+// plate, so they stay glued to it as the same rigid unit as before;
+// drawing/content have no delta (their own plates didn't move), and nails
+// has no photos to shift.
 const GALLERY: CollageCategory[] = [
   {
     slug: "drawing",
@@ -109,7 +116,7 @@ const GALLERY: CollageCategory[] = [
     slug: "nails",
     label: "Nails",
     plateXPct: 76.0,
-    plateYPct: 30.9,
+    plateYPct: 36.8,
     plateSize: PLATE_SIZE,
     photos: [],
   },
@@ -117,14 +124,14 @@ const GALLERY: CollageCategory[] = [
     slug: "dancing",
     label: "Dancing",
     plateXPct: 14.1,
-    plateYPct: 67.2,
+    plateYPct: 63.9,
     plateSize: PLATE_SIZE,
     photos: [
       {
         src: "/images/etc/dance1.png",
         caption: "Curtain call after a group recital.",
         xPct: 33,
-        yPct: 65,
+        yPct: 61.7,
         width: 288,
         height: 213,
         z: 1,
@@ -133,7 +140,7 @@ const GALLERY: CollageCategory[] = [
         src: "/images/etc/dance2.png",
         caption: "Chinese classical dance performance.",
         xPct: 36,
-        yPct: 71,
+        yPct: 67.7,
         width: 253,
         height: 180,
         z: 5,
@@ -142,7 +149,7 @@ const GALLERY: CollageCategory[] = [
         src: "/images/etc/dance3.png",
         caption: "Korean traditional hanbok dance.",
         xPct: 52.5,
-        yPct: 67.5,
+        yPct: 64.2,
         width: 220,
         height: 290,
         z: 3,
@@ -151,7 +158,7 @@ const GALLERY: CollageCategory[] = [
         src: "/images/etc/dance4.png",
         caption: "Fan dance in blue stage light.",
         xPct: 50,
-        yPct: 61.5,
+        yPct: 58.2,
         width: 290,
         height: 193,
         z: 4,
@@ -160,7 +167,7 @@ const GALLERY: CollageCategory[] = [
         src: "/images/etc/dance5.png",
         caption: "Extension into an arabesque.",
         xPct: 66,
-        yPct: 63.5,
+        yPct: 60.2,
         width: 280,
         height: 185,
         z: 5,
@@ -169,7 +176,7 @@ const GALLERY: CollageCategory[] = [
         src: "/images/etc/dance6.png",
         caption: "Backstage at the Abstract Dance Challenge.",
         xPct: 74,
-        yPct: 58,
+        yPct: 54.7,
         width: 186,
         height: 244,
         z: 5,
@@ -178,7 +185,7 @@ const GALLERY: CollageCategory[] = [
         src: "/images/etc/dance7.png",
         caption: "Fan in hand, between poses.",
         xPct: 86,
-        yPct: 63,
+        yPct: 59.7,
         width: 238,
         height: 159,
         z: 7,
@@ -199,6 +206,22 @@ const GALLERY: CollageCategory[] = [
 // highest up), independent of the order it's listed in GALLERY.
 function topToBottomRank(photos: CollagePhoto[], target: CollagePhoto): number {
   return [...photos].sort((a, b) => a.yPct - b.yPct).indexOf(target);
+}
+
+// STAGGER_STEP is per-photo, so a category's *total* cascade time grows with
+// its photo count — drawing (4 photos) spans 3 * STAGGER_STEP, but dancing
+// (7 photos) nearly doubles that to 6 * STAGGER_STEP, which reads as
+// noticeably slower to roll in even though nothing about dancing itself is
+// meant to be different. Scaling the step down for categories with more
+// photos than drawing keeps every category's total cascade within the same
+// budget drawing already uses (REFERENCE_PHOTO_COUNT - 1 steps), instead of
+// letting it stretch out further the more photos a category has. Categories
+// with 4 or fewer photos are untouched (the min just gives back
+// STAGGER_STEP).
+const REFERENCE_PHOTO_COUNT = 4; // matches drawing's own photo count
+const STAGGER_SPAN = (REFERENCE_PHOTO_COUNT - 1) * STAGGER_STEP;
+function categoryStaggerStep(photos: CollagePhoto[]): number {
+  return Math.min(STAGGER_STEP, STAGGER_SPAN / Math.max(1, photos.length - 1));
 }
 
 // Since every element is positioned by `top: yPct%`, a taller container
@@ -279,7 +302,7 @@ export default function EtcPage() {
   const [revealedCats, setRevealedCats] = useState<Set<EtcCategorySlug>>(new Set());
 
   return (
-    <section className="w-full px-4 pb-36 pt-20 text-center">
+    <section className="w-full px-4 pb-36 pt-6 text-center">
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: exitHref ? 0 : 1, y: exitHref ? -16 : 0 }}
@@ -291,13 +314,12 @@ export default function EtcPage() {
         <h1 className="font-singsong text-[clamp(2rem,6vw,3.5rem)] leading-none text-[#2460A4]">
           What&apos;s on my plate?
         </h1>
-        <p className="mt-3 font-roboto text-lg font-light text-gray-500">Welcome to My Mind.</p>
 
         {/* Desktop-only fixed composition — never rescales with the
             viewport. Narrower windows scroll horizontally instead of
             squishing the artwork. */}
         <div className="w-full overflow-x-auto">
-          <div className="relative mx-auto mt-20" style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}>
+          <div className="relative mx-auto mt-8" style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}>
             {GALLERY.map((cat) => (
               <div key={cat.slug}>
                 <Link
@@ -356,7 +378,7 @@ export default function EtcPage() {
                         // one-off exception that should lag behind the rest.
                         delay:
                           SLIDE_UP_DURATION +
-                          topToBottomRank(cat.photos, photo) * STAGGER_STEP +
+                          topToBottomRank(cat.photos, photo) * categoryStaggerStep(cat.photos) +
                           (photo.extraDelay ?? 0),
                       }}
                       className="relative h-full w-full overflow-hidden shadow-md"
